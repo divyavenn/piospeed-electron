@@ -1,5 +1,11 @@
 import os
 
+# Get mappings directory from environment variable or use default
+mappingsPath = os.environ.get('PIOSPEED_MAPPINGS_PATH')
+if not mappingsPath or not os.path.exists(mappingsPath):
+    # Use default path relative to this file
+    mappingsPath = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'mappings')
+
 solverPath = r"C:\PioSOLVER\PioSOLVER3-edge.exe"
 cfr_folder = r"C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\cfr"
 strategies_folder = r"C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\weights"

@@ -1,7 +1,7 @@
 "use strict";
 const require$$1$2 = require("electron");
-const require$$0$1 = require("path");
-const require$$0 = require("fs");
+const path$6 = require("path");
+const fs$3 = require("fs");
 const require$$1$1 = require("util");
 const require$$3$2 = require("crypto");
 const require$$4 = require("assert");
@@ -25,7 +25,8 @@ function _interopNamespaceDefault(e) {
   return Object.freeze(n);
 }
 const require$$0__namespace$1 = /* @__PURE__ */ _interopNamespaceDefault(require$$0$1);
-const require$$0__namespace = /* @__PURE__ */ _interopNamespaceDefault(require$$0);
+const path__namespace = /* @__PURE__ */ _interopNamespaceDefault(path$6);
+const fs__namespace = /* @__PURE__ */ _interopNamespaceDefault(fs$3);
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 function getDefaultExportFromCjs(x) {
   return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
@@ -138,7 +139,7 @@ var pkgUp = { exports: {} };
 var findUp$1 = { exports: {} };
 var locatePath$1 = { exports: {} };
 var pathExists$1 = { exports: {} };
-const fs$2 = require$$0;
+const fs$2 = fs$3;
 pathExists$1.exports = (fp) => new Promise((resolve2) => {
   fs$2.access(fp, (err) => {
     resolve2(!err);
@@ -226,7 +227,7 @@ var pLocate$1 = (iterable, tester, opts) => {
   return Promise.all(items2.map((el) => checkLimit(finder, el))).then(() => {
   }).catch((err) => err instanceof EndError ? err.value : Promise.reject(err));
 };
-const path$5 = require$$0$1;
+const path$5 = path$6;
 const pathExists = pathExistsExports;
 const pLocate = pLocate$1;
 locatePath$1.exports = (iterable, options) => {
@@ -246,7 +247,7 @@ locatePath$1.exports.sync = (iterable, options) => {
   }
 };
 var locatePathExports = locatePath$1.exports;
-const path$4 = require$$0$1;
+const path$4 = path$6;
 const locatePath = locatePathExports;
 findUp$1.exports = (filename, opts = {}) => {
   const startDir = path$4.resolve(opts.cwd || "");
@@ -287,7 +288,7 @@ pkgUp.exports = async ({ cwd } = {}) => findUp("package.json", { cwd });
 pkgUp.exports.sync = ({ cwd } = {}) => findUp.sync("package.json", { cwd });
 var pkgUpExports = pkgUp.exports;
 var envPaths$1 = { exports: {} };
-const path$3 = require$$0$1;
+const path$3 = path$6;
 const os = require$$1;
 const homedir = os.homedir();
 const tmpdir = os.tmpdir();
@@ -516,7 +517,7 @@ const retryifySync = (fn, isRetriableError) => {
 };
 retryify.retryifySync = retryifySync;
 Object.defineProperty(fs$1, "__esModule", { value: true });
-const fs = require$$0;
+const fs = fs$3;
 const util_1$S = require$$1$1;
 const attemptify_1 = attemptify;
 const fs_handlers_1 = fs_handlers;
@@ -598,7 +599,7 @@ const Scheduler = {
 scheduler.default = Scheduler;
 var temp = {};
 Object.defineProperty(temp, "__esModule", { value: true });
-const path$2 = require$$0$1;
+const path$2 = path$6;
 const consts_1$1 = consts;
 const fs_1$1 = fs$1;
 const Temp = {
@@ -647,7 +648,7 @@ process.on("exit", Temp.purgeSyncAll);
 temp.default = Temp;
 Object.defineProperty(dist$1, "__esModule", { value: true });
 dist$1.writeFileSync = dist$1.writeFile = dist$1.readFileSync = dist$1.readFile = void 0;
-const path$1 = require$$0$1;
+const path$1 = path$6;
 const consts_1 = consts;
 const fs_1 = fs$1;
 const lang_1 = lang;
@@ -14380,8 +14381,8 @@ var onetimeExports = onetime$1.exports;
   var _Conf_validator, _Conf_encryptionKey, _Conf_options, _Conf_defaultValues;
   Object.defineProperty(exports, "__esModule", { value: true });
   const util_12 = require$$1$1;
-  const fs2 = require$$0;
-  const path2 = require$$0$1;
+  const fs2 = fs$3;
+  const path2 = path$6;
   const crypto = require$$3$2;
   const assert = require$$4;
   const events_1 = require$$5;
@@ -14822,7 +14823,7 @@ var onetimeExports = onetime$1.exports;
   module.exports.default = Conf2;
 })(source, source.exports);
 var sourceExports = source.exports;
-const path = require$$0$1;
+const path = path$6;
 const { app, ipcMain, ipcRenderer, shell } = require$$1$2;
 const Conf = sourceExports;
 let isInitialized = false;
@@ -14884,6 +14885,122 @@ class ElectronStore extends Conf {
 }
 var electronStore = ElectronStore;
 const Store = /* @__PURE__ */ getDefaultExportFromCjs(electronStore);
+function getPythonExecutable() {
+  switch (process.platform) {
+    case "win32":
+      return "python";
+    case "darwin":
+      return "python3";
+    case "linux":
+      return "python3";
+    default:
+      return "python3";
+  }
+}
+function getEmbeddedPythonPath() {
+  if (require$$1$2.app.isPackaged) {
+    const resourcesPath = process.resourcesPath;
+    if (process.platform === "win32") {
+      const embeddedPath = path__namespace.join(resourcesPath, "python", "python.exe");
+      if (fs__namespace.existsSync(embeddedPath)) {
+        return embeddedPath;
+      }
+    } else if (process.platform === "darwin") {
+      const embeddedPath = path__namespace.join(resourcesPath, "python", "bin", "python3");
+      if (fs__namespace.existsSync(embeddedPath)) {
+        return embeddedPath;
+      }
+    } else if (process.platform === "linux") {
+      const embeddedPath = path__namespace.join(resourcesPath, "python", "bin", "python3");
+      if (fs__namespace.existsSync(embeddedPath)) {
+        return embeddedPath;
+      }
+    }
+  }
+  return null;
+}
+async function checkPythonInstalled() {
+  try {
+    const embeddedPython = getEmbeddedPythonPath();
+    if (embeddedPython) {
+      console.log(`Using embedded Python at: ${embeddedPython}`);
+      return true;
+    }
+    const pythonExecutable = getPythonExecutable();
+    return new Promise((resolve2) => {
+      const pythonProcess2 = child_process.spawn(pythonExecutable, ["-c", "import sys; print(sys.version)"]);
+      let output = "";
+      pythonProcess2.stdout.on("data", (data) => {
+        output += data.toString();
+      });
+      pythonProcess2.on("close", (code2) => {
+        if (code2 === 0) {
+          console.log(`Python is installed: ${output.trim()}`);
+          resolve2(true);
+        } else {
+          console.log("Python is not installed or not in PATH");
+          resolve2(false);
+        }
+      });
+      pythonProcess2.on("error", () => {
+        console.log("Error checking Python installation");
+        resolve2(false);
+      });
+    });
+  } catch (error2) {
+    console.error("Error checking Python:", error2);
+    return false;
+  }
+}
+async function installPythonDependencies(appPath) {
+  try {
+    const pythonExecutable = getEmbeddedPythonPath() || getPythonExecutable();
+    let requirementsPath = path__namespace.join(appPath, "python", "requirements.txt");
+    if (!fs__namespace.existsSync(requirementsPath)) {
+      const alternateLocations = [
+        path__namespace.join(process.resourcesPath, "python", "requirements.txt"),
+        path__namespace.join(appPath, "resources", "python", "requirements.txt")
+      ];
+      for (const location of alternateLocations) {
+        if (fs__namespace.existsSync(location)) {
+          requirementsPath = location;
+          break;
+        }
+      }
+    }
+    if (!fs__namespace.existsSync(requirementsPath)) {
+      console.error("requirements.txt not found");
+      return false;
+    }
+    return new Promise((resolve2) => {
+      console.log(`Installing Python dependencies from ${requirementsPath}`);
+      const pipArgs = ["-m", "pip", "install", "-r", requirementsPath];
+      const pipProcess = typeof pythonExecutable === "string" ? child_process.spawn(pythonExecutable, pipArgs) : child_process.spawn(pythonExecutable, pipArgs);
+      pipProcess.stdout.on("data", (data) => {
+        console.log(`pip stdout: ${data.toString()}`);
+      });
+      pipProcess.stderr.on("data", (data) => {
+        console.error(`pip stderr: ${data.toString()}`);
+      });
+      pipProcess.on("close", (code2) => {
+        if (code2 === 0) {
+          console.log("Python dependencies installed successfully");
+          resolve2(true);
+        } else {
+          console.error(`pip install failed with code ${code2}`);
+          resolve2(false);
+        }
+      });
+      pipProcess.on("error", (err) => {
+        console.error("Error installing Python dependencies:", err);
+        resolve2(false);
+      });
+    });
+  } catch (error2) {
+    console.error("Error installing Python dependencies:", error2);
+    return false;
+  }
+}
 const store = new Store();
 if (process.env.NODE_ENV === "development") {
   if (process.platform === "win32") {
@@ -14899,12 +15016,13 @@ if (process.env.NODE_ENV === "development") {
   }
 }
 let mainWindow = null;
-function createWindow() {
+let pythonProcess = null;
+async function createWindow() {
   mainWindow = new require$$1$2.BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: require$$0__namespace$1.join(__dirname, "preload.js"),
+      preload: path__namespace.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true
     },
@@ -14914,11 +15032,21 @@ function createWindow() {
     // Dark theme color
     show: false
   });
+  const isPythonInstalled = await checkPythonInstalled();
+  if (!isPythonInstalled) {
+    require$$1$2.dialog.showErrorBox(
+      "Python Not Found",
+      "Python 3 is required to run this application. Please install Python 3 and try again."
+    );
+    require$$1$2.app.quit();
+    return;
+  }
+  await installPythonDependencies(require$$1$2.app.getAppPath());
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(require$$0__namespace$1.join(__dirname, "../dist/index.html"));
+    mainWindow.loadFile(path__namespace.join(__dirname, "../dist/index.html"));
   }
   mainWindow.once("ready-to-show", () => {
     mainWindow == null ? void 0 : mainWindow.show();
@@ -14927,6 +15055,119 @@ function createWindow() {
     require$$1$2.shell.openExternal(url);
     return { action: "deny" };
   });
+  createApplicationMenu();
+}
+function createApplicationMenu() {
+  const isMac = process.platform === "darwin";
+  const template = [
+    // App menu (macOS only)
+    ...isMac ? [{
+      label: require$$1$2.app.name,
+      submenu: [
+        { role: "about" },
+        { type: "separator" },
+        { role: "services" },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" }
+      ]
+    }] : [],
+    // File menu
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "Select Solver Path",
+          click: async () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("menu:select-solver");
+            }
+          }
+        },
+        { type: "separator" },
+        isMac ? { role: "close" } : { role: "quit" }
+      ]
+    },
+    // Edit menu
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        ...isMac ? [
+          { role: "pasteAndMatchStyle" },
+          { role: "delete" },
+          { role: "selectAll" },
+          { type: "separator" },
+          {
+            label: "Speech",
+            submenu: [
+              { role: "startSpeaking" },
+              { role: "stopSpeaking" }
+            ]
+          }
+        ] : [
+          { role: "delete" },
+          { type: "separator" },
+          { role: "selectAll" }
+        ]
+      ]
+    },
+    // View menu
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { role: "forceReload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" }
+      ]
+    },
+    // Help menu
+    {
+      label: "Help",
+      submenu: [
+        {
+          label: "Instructions",
+          click: async () => {
+            const instructionsPath = require$$1$2.app.isPackaged ? path__namespace.join(process.resourcesPath, "public", "instructions.html") : path__namespace.join(require$$1$2.app.getAppPath(), "public", "instructions.html");
+            if (fs__namespace.existsSync(instructionsPath)) {
+              require$$1$2.shell.openExternal(`file://${instructionsPath}`);
+            } else {
+              require$$1$2.dialog.showErrorBox(
+                "Instructions Not Found",
+                "The instructions file could not be found."
+              );
+            }
+          }
+        },
+        {
+          label: "About PioSpeed",
+          click: async () => {
+            require$$1$2.dialog.showMessageBox({
+              title: "About PioSpeed",
+              message: "PioSpeed",
+              detail: "Version 1.0.0\nAn Electron-based interface for PioSOLVER."
+            });
+          }
+        }
+      ]
+    }
+  ];
+  const menu = require$$1$2.Menu.buildFromTemplate(template);
+  require$$1$2.Menu.setApplicationMenu(menu);
 }
 require$$1$2.app.whenReady().then(() => {
   createWindow();
@@ -14941,6 +15182,157 @@ require$$1$2.app.on("window-all-closed", () => {
     require$$1$2.app.quit();
   }
 });
+require$$1$2.app.on("will-quit", () => {
+  if (pythonProcess) {
+    pythonProcess.kill();
+  }
+});
+function startPythonProcess() {
+  try {
+    const pythonExecutable = getEmbeddedPythonPath() || getPythonExecutable();
+    let pythonScriptPath;
+    let mappingsPath;
+    const appPath = require$$1$2.app.getAppPath();
+    const frontendPath = appPath.endsWith("frontend") ? appPath : path__namespace.join(appPath, "frontend");
+    if (require$$1$2.app.isPackaged) {
+      pythonScriptPath = path__namespace.join(process.resourcesPath, "python", "electron_bridge.py");
+      mappingsPath = path__namespace.join(process.resourcesPath, "public", "mappings");
+    } else {
+      pythonScriptPath = path__namespace.join(frontendPath, "python", "electron_bridge.py");
+      mappingsPath = path__namespace.join(frontendPath, "public", "mappings");
+    }
+    console.log("App path:", appPath);
+    console.log("Frontend path:", frontendPath);
+    console.log("Python executable:", pythonExecutable);
+    console.log("Python script path:", pythonScriptPath);
+    console.log("Mappings path:", mappingsPath);
+    if (!fs__namespace.existsSync(pythonScriptPath)) {
+      console.error(`Python script not found at: ${pythonScriptPath}`);
+      throw new Error(`Python script not found at: ${pythonScriptPath}`);
+    }
+    if (!fs__namespace.existsSync(mappingsPath)) {
+      console.warn(`Mappings directory not found at: ${mappingsPath}`);
+    }
+    const env2 = {
+      ...process.env,
+      PIOSPEED_MAPPINGS_PATH: mappingsPath
+    };
+    const childProcess = child_process.spawn(pythonExecutable, [pythonScriptPath], {
+      env: env2,
+      stdio: ["pipe", "pipe", "pipe"]
+      // Enable stdin, stdout, stderr
+    });
+    childProcess.stdout.setEncoding("utf8");
+    childProcess.stderr.setEncoding("utf8");
+    let stdoutBuffer = "";
+    childProcess.stdout.on("data", (data) => {
+      const dataStr = data.toString();
+      stdoutBuffer += dataStr;
+      let jsonStart = 0;
+      let jsonEnd = stdoutBuffer.indexOf("\n", jsonStart);
+      while (jsonEnd !== -1) {
+        const jsonStr = stdoutBuffer.substring(jsonStart, jsonEnd).trim();
+        if (jsonStr) {
+          try {
+            const message = JSON.parse(jsonStr);
+            handlePythonMessage(message);
+          } catch (error2) {
+            console.error("Error parsing JSON from Python:", error2, jsonStr);
+          }
+        }
+        jsonStart = jsonEnd + 1;
+        jsonEnd = stdoutBuffer.indexOf("\n", jsonStart);
+      }
+      stdoutBuffer = stdoutBuffer.substring(jsonStart);
+    });
+    childProcess.stderr.on("data", (data) => {
+      console.log("Python stderr:", data.toString());
+    });
+    childProcess.on("close", (code2) => {
+      console.log(`Python process exited with code ${code2}`);
+      pythonProcess = null;
+      if (code2 !== 0 && mainWindow) {
+        mainWindow.webContents.send("python:error", {
+          message: `Python process exited with code ${code2}`
+        });
+      }
+    });
+    childProcess.on("error", (error2) => {
+      console.error("Error starting Python process:", error2);
+      pythonProcess = null;
+      if (mainWindow) {
+        mainWindow.webContents.send("python:error", {
+          message: `Failed to start Python process: ${error2.message}`
+        });
+      }
+    });
+    return childProcess;
+  } catch (error2) {
+    console.error("Error starting Python process:", error2);
+    require$$1$2.dialog.showErrorBox(
+      "Python Error",
+      `Failed to start Python process: ${error2.message}`
+    );
+    return null;
+  }
+}
+function handlePythonMessage(message) {
+  if (!mainWindow) {
+    console.error("No main window available to send message to");
+    return;
+  }
+  const messageType = message.type;
+  const data = message.data;
+  console.log("Received message from Python:", messageType);
+  switch (messageType) {
+    case "ready":
+      console.log("Python bridge is ready");
+      break;
+    case "output":
+      mainWindow.webContents.send("python:output", data);
+      break;
+    case "error":
+      mainWindow.webContents.send("python:error", data);
+      break;
+    case "step_update":
+      mainWindow.webContents.send("python:step-update", data);
+      break;
+    case "request_input":
+      mainWindow.webContents.send("python:request-input", data);
+      break;
+    case "commands":
+      mainWindow.webContents.send("python:commands", data);
+      break;
+    case "init_complete":
+      mainWindow.webContents.send("python:init-complete", data);
+      break;
+    case "command_complete":
+      mainWindow.webContents.send("python:command-complete", data);
+      break;
+    case "input_received":
+      mainWindow.webContents.send("python:input-received", data);
+      break;
+    default:
+      console.warn("Unknown message type from Python:", messageType);
+  }
+}
+function sendToPython(action, data = {}) {
+  if (!pythonProcess) {
+    console.error("No Python process running");
+    return false;
+  }
+  try {
+    const message = JSON.stringify({
+      action,
+      ...data
+    });
+    pythonProcess.stdin.write(message + "\n");
+    return true;
+  } catch (error2) {
+    console.error("Error sending message to Python:", error2);
+    return false;
+  }
+}
 require$$1$2.ipcMain.handle("select-solver-path", async () => {
   if (!mainWindow)
     return null;
@@ -14986,33 +15378,61 @@ require$$1$2.ipcMain.handle("select-folder", async () => {
     return filePaths[0];
   }
 });
-require$$1$2.ipcMain.handle("run-solver-command", async (_, { solverPath, command, args }) => {
-  if (!require$$0__namespace.existsSync(solverPath)) {
-    return { success: false, error: "Solver executable not found." };
-  }
+require$$1$2.ipcMain.handle("init-solver", async (_, solverPath) => {
   try {
-    return new Promise((resolve2, reject) => {
-      const process2 = child_process.spawn(solverPath, [command, ...args]);
-      let stdout = "";
-      let stderr = "";
-      process2.stdout.on("data", (data) => {
-        stdout += data.toString();
-        mainWindow == null ? void 0 : mainWindow.webContents.send("solver-output", data.toString());
-      });
-      process2.stderr.on("data", (data) => {
-        stderr += data.toString();
-        mainWindow == null ? void 0 : mainWindow.webContents.send("solver-error", data.toString());
-      });
-      process2.on("close", (code2) => {
-        if (code2 === 0) {
-          resolve2({ success: true, stdout, stderr });
-        } else {
-          reject({ success: false, code: code2, stdout, stderr });
-        }
-      });
-    });
+    if (!pythonProcess) {
+      pythonProcess = startPythonProcess();
+    }
+    if (!pythonProcess) {
+      throw new Error("Failed to start Python process");
+    }
+    sendToPython("init", { solverPath });
+    return { success: true, message: "Solver initialization requested" };
   } catch (error2) {
-    return { success: false, error: error2.message };
+    console.error("Error initializing solver:", error2);
+    return { success: false, message: error2.message };
+  }
+});
+require$$1$2.ipcMain.handle("execute-command", async (_, solverPath, command, args) => {
+  try {
+    if (!pythonProcess) {
+      pythonProcess = startPythonProcess();
+    }
+    if (!pythonProcess) {
+      throw new Error("Failed to start Python process");
+    }
+    sendToPython("run_command", { solverPath, command, args });
+    return { success: true, message: "Command execution requested" };
+  } catch (error2) {
+    console.error("Error executing command:", error2);
+    return { success: false, message: error2.message };
+  }
+});
+require$$1$2.ipcMain.handle("get-commands", async () => {
+  try {
+    if (!pythonProcess) {
+      pythonProcess = startPythonProcess();
+    }
+    if (!pythonProcess) {
+      throw new Error("Failed to start Python process");
+    }
+    sendToPython("get_commands");
+    return { success: true, message: "Commands requested" };
+  } catch (error2) {
+    console.error("Error getting commands:", error2);
+    return { success: false, message: error2.message };
+  }
+});
+require$$1$2.ipcMain.handle("send-input-to-python", async (_, input) => {
+  try {
+    if (!pythonProcess) {
+      return { success: false, message: "No Python process running" };
+    }
+    sendToPython("input", { input });
+    return { success: true, message: "Input sent to Python" };
+  } catch (error2) {
+    console.error("Error sending input to Python:", error2);
+    return { success: false, message: error2.message };
   }
 });
 require$$1$2.ipcMain.handle("save-folder-path", (_, { key, path: path2 }) => {

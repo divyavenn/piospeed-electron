@@ -1,0 +1,10 @@
+# Python dependencies for PioSpeed
+# These will be installed automatically when the app is first run
+
+# Common dependencies
+easygui==0.98.3
+nicegui==1.4.22
+
+# Platform-specific dependencies
+# pywin32 is only needed on Windows
+pywin32==306; sys_platform == 'win32'

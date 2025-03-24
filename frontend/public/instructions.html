@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PioSpeed Instructions</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .note {
+            background-color: #e7f5fe;
+            border-left: 4px solid #3498db;
+            padding: 10px;
+            margin: 15px 0;
+        }
+        .warning {
+            background-color: #fff5e7;
+            border-left: 4px solid #e67e22;
+            padding: 10px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>PioSpeed Instructions</h1>
+    
+    <h2>Getting Started</h2>
+    <p>Welcome to PioSpeed, an Electron-based interface for PioSOLVER. This application allows you to interact with PioSOLVER through a modern graphical interface.</p>
+    
+    <div class="note">
+        <strong>Note:</strong> This application requires Python 3 to be installed on your system. The application will check for Python and notify you if it's not found.
+    </div>
+    
+    <h2>Setting Up</h2>
+    <ol>
+        <li>Select your PioSOLVER executable by clicking the "Select Solver" button in the settings panel.</li>
+        <li>Once the solver is selected, the application will automatically initialize the connection.</li>
+        <li>You can also configure mapping files and other settings in the settings panel.</li>
+    </ol>
+    
+    <h2>Using Commands</h2>
+    <p>The application provides access to various commands available in PioSOLVER:</p>
+    <ol>
+        <li>Select a command from the dropdown menu.</li>
+        <li>Fill in the required parameters for the selected command.</li>
+        <li>Click "Execute" to run the command.</li>
+        <li>View the results in the output panel.</li>
+    </ol>
+    
+    <h2>Input and Output</h2>
+    <p>The application may request input from you during command execution:</p>
+    <ul>
+        <li>Text input: Type your response in the text field and press Enter.</li>
+        <li>File selection: Use the file browser to select the required file.</li>
+        <li>Directory selection: Use the directory browser to select the required folder.</li>
+    </ul>
+    
+    <p>Output from commands will be displayed in the output panel, including:</p>
+    <ul>
+        <li>Command results</li>
+        <li>Status updates</li>
+        <li>Error messages</li>
+    </ul>
+    
+    <h2>Troubleshooting</h2>
+    
+    <h3>Python Issues</h3>
+    <p>If the application reports issues with Python:</p>
+    <ul>
+        <li>Make sure Python 3 is installed and in your system PATH.</li>
+        <li>Try restarting the application.</li>
+        <li>Check the console log for more detailed error messages.</li>
+    </ul>
+    
+    <h3>PioSOLVER Connection Issues</h3>
+    <p>If the application cannot connect to PioSOLVER:</p>
+    <ul>
+        <li>Verify the path to the PioSOLVER executable is correct.</li>
+        <li>Ensure PioSOLVER is not already running in another process.</li>
+        <li>Check if your firewall is blocking the connection.</li>
+    </ul>
+    
+    <div class="warning">
+        <strong>Warning:</strong> Always make sure to close the application properly to ensure the PioSOLVER process is terminated correctly.
+    </div>
+    
+    <h2>Getting Help</h2>
+    <p>If you encounter any issues or have questions about the application, please contact support at support@example.com.</p>
+    
+</body>
+</html> 

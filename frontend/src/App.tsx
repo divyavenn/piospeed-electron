@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+/// <reference path="./electron.d.ts" />
+import React, { useEffect, useState } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { RecoilRoot, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+import { RecoilRoot, useRecoilState, useRecoilValue } from 'recoil';
 import Background from './components/layout/Background';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
@@ -9,7 +10,6 @@ import SettingsButton from './components/UI/SettingsButton';
 import SettingsModal from './components/Settings/SettingsModal';
 import SetupWizard from './components/Settings/SetupWizard';
 import { useSettings } from './contexts/SettingsContext';
-import { ThemeProvider } from 'styled-components';
 import {
   nodelockState,
   solveTypeState,
@@ -22,9 +22,7 @@ import {
   hasCommandSelectedState,
   CommandMap,
   getCommandDescription,
-  AnimationState,
-  SolveType,
-  SaveType
+  AnimationState
 } from './recoil/atoms';
 
 
@@ -80,7 +78,7 @@ const CenteredHeaderContainer = styled.div<{ animate: AnimationState }>`
       : animate === 'moveUp'
         ? css`${moveUp} 0.8s ease-out forwards`
         : 'none'};
-  margin-bottom: ${({ animate }) => animate !== 'intro' ? '50px' : '0'};
+  margin-bottom: ${({ animate }) => animate !== 'intro' ? '20px' : '0'};
 `;
 
 const TaglineWrapper = styled.div<{ animate: AnimationState }>`
@@ -253,11 +251,14 @@ const Spinner = styled.div`
 `;
 
 const ExecuteButton = styled(Button)`
-  margin-top: 100px;
+  margin-top: 40px;
   margin-bottom: ${({ theme }) => theme.spacing.xxl};
   width: 100%;
   max-width: 180px;
   animation: ${glowRipple} 2s infinite cubic-bezier(0.36, 0.11, 0.89, 0.32);
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
   
   &:hover {
     animation-play-state: paused;
@@ -276,7 +277,15 @@ const CommandDescriptionText = styled.p`
   min-height: 40px;
 `;
 
-// Create a RecoilApp component to use hooks (RecoilRoot cannot use hooks directly)
+// Add interfaces for Python communication
+interface PyRequestInput {
+  type: 'request_input';
+  input_type: 'text' | 'file' | 'directory' | 'command';
+  prompt?: string;
+  default_location?: string;
+  commands?: string[];
+}
+
 const RecoilApp: React.FC = () => {
   // Recoil state instead of useState
   const [settingsModalOpen, setSettingsModalOpen] = useRecoilState(settingsModalOpenState);
@@ -288,8 +297,8 @@ const RecoilApp: React.FC = () => {
   const [animState, setAnimationState] = useRecoilState(animationState);
   
   // Use the direct values and derived command state
-  const currentCommand = useRecoilValue(currentCommandState);
-  const hasCommandSelected = useRecoilValue(hasCommandSelectedState);
+  const [currentCommand, setCurrentCommand] = useRecoilState(currentCommandState);
+  const [hasCommandSelected, setHasCommandSelected] = useRecoilState(hasCommandSelectedState);
   
   const { 
     settings, 
@@ -299,6 +308,13 @@ const RecoilApp: React.FC = () => {
     isLoading
   } = useSettings();
 
+  // Add states for Python communication
+  const [pythonSteps, setPythonSteps] = useState<string[]>([]);
+  const [pythonCurrentStep, setPythonCurrentStep] = useState<string>('');
+  const [availableCommands, setAvailableCommands] = useState<Record<string, string>>({});
+  const [pythonInputRequest, setPythonInputRequest] = useState<PyRequestInput | null>(null);
+  const [pythonInputValue, setPythonInputValue] = useState<string>('');
+  
   // Control the animation sequence
   useEffect(() => {
     if (isLoading || isFirstLaunch) return;
@@ -322,6 +338,142 @@ const RecoilApp: React.FC = () => {
     };
   }, [isLoading, isFirstLaunch, setAnimationState]);
 
+  // Effect for initializing Python listeners
+  useEffect(() => {
+    // Set up listeners for Python communication
+    const electron = (window as any).electron;
+    
+    electron.onPythonStepUpdate((step: string) => {
+      setPythonCurrentStep(step);
+      setPythonSteps(prev => [...prev, step]);
+    });
+
+    electron.onPythonOutput((message: string) => {
+      console.log('Python output:', message);
+      // You could display this in a toast notification or console
+    });
+
+    electron.onPythonError((error: string) => {
+      console.error('Python error:', error);
+      // Display error in UI
+    });
+
+    electron.onPythonRequestInput((request: PyRequestInput) => {
+      setPythonInputRequest(request);
+    });
+
+    electron.onPythonCommands((commands: Record<string, string>) => {
+      setAvailableCommands(commands);
+    });
+
+    // Fetch available commands when component mounts
+    loadPythonCommands();
+
+    return () => {
+      // Clean up event listeners if needed
+    };
+  }, []);
+
+  // Function to load Python commands
+  const loadPythonCommands = async () => {
+    try {
+      await (window as any).electron.getCommands();
+    } catch (error) {
+      console.error('Error fetching commands:', error);
+    }
+  };
+
+  // Handle submit Python input
+  const handleSubmitPythonInput = async () => {
+    if (!pythonInputRequest) return;
+    
+    const electron = (window as any).electron;
+
+    try {
+      if (pythonInputRequest.input_type === 'file') {
+        const filePath = await electron.selectFile({});
+        if (filePath) {
+          await electron.sendInputToPython(filePath);
+        }
+      } else if (pythonInputRequest.input_type === 'directory') {
+        const dirPath = await electron.selectFolder();
+        if (dirPath) {
+          await electron.sendInputToPython(dirPath);
+        }
+      } else {
+        await electron.sendInputToPython(pythonInputValue);
+      }
+      
+      setPythonInputRequest(null);
+      setPythonInputValue('');
+    } catch (error) {
+      console.error('Error sending input to Python:', error);
+    }
+  };
+
+  // Modified function to use Python bridge
+  const handleRunSolver = async () => {
+    if (!settings.solverPath) {
+      alert('Please select the PioSOLVER executable first');
+      return;
+    }
+
+    try {
+      // Initialize the solver with the configured path
+      const result = await (window as any).electron.initSolver(settings.solverPath);
+      console.log('Solver initialization result:', result);
+    } catch (error) {
+      console.error('Error initializing solver:', error);
+    }
+  };
+
+  // Modified function to execute command through Python
+  const executeCommand = () => {
+    if (currentCommand === CommandMap.NONE) return;
+    
+    setIsRunning(true);
+    setPythonSteps([]);
+    setPythonCurrentStep('Initializing command...');
+    
+    console.log(`Executing command: ${currentCommand}`);
+    
+    // Convert the command ID to a string command name
+    const commandName = getCommandName(currentCommand);
+    
+    if (!commandName) {
+      console.error('Unknown command');
+      setIsRunning(false);
+      return;
+    }
+    
+    // Execute the command through Python bridge
+    (window as any).electron.executeCommand({
+      command: commandName,
+      args: [] // Add arguments if needed
+    }).catch((error: any) => {
+      console.error('Error executing command:', error);
+      setIsRunning(false);
+    });
+  };
+
+  // Helper function to get command string name from CommandMap enum
+  const getCommandName = (commandEnum: any): string | null => {
+    // This will depend on your CommandMap structure
+    // Assuming CommandMap has a string name property
+    if (typeof commandEnum === 'object' && commandEnum.name) {
+      return commandEnum.name;
+    }
+    return null;
+  };
+
+  const cancelCommand = () => {
+    setIsRunning(false);
+    // Additional cleanup if needed
+  };
+
+  // Get the command description using the direct states
+  const commandDescription = getCommandDescription(currentCommand);
+
   // If still loading the settings, show a loading screen
   if (isLoading) {
     return (
@@ -331,68 +483,10 @@ const RecoilApp: React.FC = () => {
     );
   }
 
-  const handleRunSolver = async () => {
-    if (!settings.solverPath) {
-      alert('Please select the PioSOLVER executable first');
-      return;
-    }
-
-    try {
-      const result = await window.electron.runSolverCommand({
-        solverPath: settings.solverPath,
-        command: 'help',
-        args: []
-      });
-      
-      console.log('Solver result:', result);
-    } catch (error) {
-      console.error('Error running solver:', error);
-    }
-  };
-
   const handleSetupComplete = async (newSettings: typeof settings) => {
     await saveSettings(newSettings);
     await setFirstLaunchComplete();
   };
-
-  const executeCommand = () => {
-    if (currentCommand === CommandMap.NONE) return;
-    
-    setIsRunning(true);
-    
-    // Simulate command execution with steps
-    const steps = [
-      'Initializing command...',
-      'Processing files...',
-      'Running calculations...',
-      'Finalizing results...'
-    ];
-    
-    let stepIndex = 0;
-    setCurrentStep(steps[stepIndex]);
-    
-    console.log(`Executing command: ${currentCommand}`);
-    
-    const interval = setInterval(() => {
-      stepIndex++;
-      if (stepIndex < steps.length) {
-        setCurrentStep(steps[stepIndex]);
-      } else {
-        clearInterval(interval);
-        // Wait 1 second before ending to show the final step
-        setTimeout(() => {
-          setIsRunning(false);
-        }, 1000);
-      }
-    }, 2000);
-  };
-
-  const cancelCommand = () => {
-    setIsRunning(false);
-  };
-
-  // Get the command description using the direct states
-  const commandDescription = getCommandDescription(currentCommand);
 
   return (
     <Background>
@@ -430,18 +524,65 @@ const RecoilApp: React.FC = () => {
                       ? currentCommand.name 
                       : currentCommand}
                   </ExecutionTitle>
-                  <Spinner />
-                  <ExecutionStep>{currentStep}</ExecutionStep>
+                  <StepIndicator>
+                    {pythonCurrentStep || currentStep}
+                  </StepIndicator>
+                  <ProgressBar>
+                    <ProgressBarFill />
+                  </ProgressBar>
+                  {/* Python Input Request UI */}
+                  {pythonInputRequest && (
+                    <InputRequestContainer>
+                      <InputRequestTitle>{pythonInputRequest.prompt || 'Input Requested'}</InputRequestTitle>
+                      {pythonInputRequest.input_type === 'text' && (
+                        <>
+                          <InputField 
+                            value={pythonInputValue} 
+                            onChange={(e) => setPythonInputValue(e.target.value)} 
+                          />
+                          <Button onClick={handleSubmitPythonInput}>Submit</Button>
+                        </>
+                      )}
+                      {pythonInputRequest.input_type === 'file' && (
+                        <Button onClick={handleSubmitPythonInput}>Select File</Button>
+                      )}
+                      {pythonInputRequest.input_type === 'directory' && (
+                        <Button onClick={handleSubmitPythonInput}>Select Folder</Button>
+                      )}
+                      {pythonInputRequest.input_type === 'command' && (
+                        <CommandSelectionContainer>
+                          {pythonInputRequest.commands?.map((cmd) => (
+                            <CommandButton 
+                              key={cmd}
+                              onClick={() => {
+                                setPythonInputValue(cmd);
+                                handleSubmitPythonInput();
+                              }}
+                            >
+                              {cmd}
+                            </CommandButton>
+                          ))}
+                        </CommandSelectionContainer>
+                      )}
+                    </InputRequestContainer>
+                  )}
+                  <CancelButton onClick={cancelCommand}>
+                    Cancel
+                  </CancelButton>
                 </ExecutionStatus>
-                <ExecuteButton 
-                  variant="secondary" 
-                  onClick={cancelCommand}
-                >
-                  Cancel
-                </ExecuteButton>
+                {/* Show steps history */}
+                {pythonSteps.length > 0 && (
+                  <StepsHistory>
+                    {pythonSteps.map((step, index) => (
+                      <StepItem key={index} completed={true}>
+                        {step}
+                      </StepItem>
+                    ))}
+                  </StepsHistory>
+                )}
               </ExecutionContainer>
             ) : (
-              <>
+              <CommandSelectionContainer>
                 <DescriptionText>
                   {getCommandDescription(currentCommand)}
                 </DescriptionText>
@@ -551,7 +692,33 @@ const RecoilApp: React.FC = () => {
                 >
                   Go
                 </ExecuteButton>
-              </>
+                
+                {/* Add available Python commands if needed */}
+                {Object.entries(availableCommands).length > 0 && (
+                  <CommandCategoryContainer>
+                    <CategoryTitle>Available Commands:</CategoryTitle>
+                    <CommandGrid>
+                      {Object.entries(availableCommands).map(([cmdName, description]) => (
+                        <CommandButton 
+                          key={cmdName}
+                          onClick={() => {
+                            // Map Python command to UI command
+                            // This depends on your CommandMap structure
+                            const mappedCommand = mapPythonCommandToUI(cmdName);
+                            if (mappedCommand) {
+                              setCurrentCommand(mappedCommand);
+                              setHasCommandSelected(true);
+                            }
+                          }}
+                        >
+                          {cmdName}
+                          {description && <CommandDescription>{description}</CommandDescription>}
+                        </CommandButton>
+                      ))}
+                    </CommandGrid>
+                  </CommandCategoryContainer>
+                )}
+              </CommandSelectionContainer>
             )}
           </ContentSection>
         </MainContent>
@@ -576,7 +743,161 @@ const RecoilApp: React.FC = () => {
   );
 };
 
-// Create a wrapper App component that provides RecoilRoot
+// Helper function to map Python commands to UI commands
+const mapPythonCommandToUI = (pythonCommand: string) => {
+  // Implement the mapping logic based on your command structure
+  // This is placeholder code - adjust according to your actual CommandMap structure
+  return {
+    name: pythonCommand,
+    description: '', // Add description if available
+    id: pythonCommand
+  };
+};
+
+// Add styled components for the new Python UI elements
+const InputRequestContainer = styled.div`
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const InputRequestTitle = styled.div`
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 10px;
+`;
+
+const InputField = styled.input`
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 1rem;
+  
+  &:focus {
+    outline: none;
+    border-color: #3f8cff;
+  }
+`;
+
+const StepsHistory = styled.div`
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const StepItem = styled.div<{ completed: boolean }>`
+  padding: 8px 12px;
+  background: ${props => props.completed ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
+  border-left: 3px solid ${props => props.completed ? '#00ff00' : '#aaa'};
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: ${props => props.completed ? '#fff' : '#aaa'};
+`;
+
+const CommandCategoryContainer = styled.div`
+  margin-top: 20px;
+`;
+
+const CategoryTitle = styled.h3`
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  color: #fff;
+  font-weight: 500;
+`;
+
+const CommandGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+`;
+
+const CommandDescription = styled.div`
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-top: 5px;
+`;
+
+const CommandButton = styled.button`
+  background: rgba(25, 38, 56, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  
+  &:hover {
+    background: rgba(63, 140, 255, 0.2);
+    border-color: rgba(63, 140, 255, 0.5);
+  }
+`;
+
+const CommandSelectionContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+`;
+
+const StepIndicator = styled.div`
+  font-size: 1.2rem;
+  color: #fff;
+  margin: 15px 0;
+  font-weight: 300;
+`;
+
+const ProgressBar = styled.div`
+  width: 100%;
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin: 15px 0;
+  overflow: hidden;
+  position: relative;
+`;
+
+const ProgressBarFill = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, #3f8cff, #2fd8d8);
+  border-radius: 3px;
+  animation: progress 2s infinite ease-in-out;
+  
+  @keyframes progress {
+    0% { width: 0; left: 0; }
+    50% { width: 30%; }
+    100% { width: 0; left: 100%; }
+  }
+`;
+
+const CancelButton = styled.button`
+  background: rgba(255, 100, 100, 0.2);
+  border: 1px solid rgba(255, 100, 100, 0.4);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-top: 20px;
+  align-self: flex-end;
+  
+  &:hover {
+    background: rgba(255, 100, 100, 0.3);
+    border-color: rgba(255, 100, 100, 0.6);
+  }
+`;
+
 const App: React.FC = () => {
   return (
     <RecoilRoot>

@@ -62,7 +62,19 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "python/**/*",
+      "public/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python",
+        "to": "python"
+      },
+      {
+        "from": "public/mappings",
+        "to": "public/mappings"
+      }
     ]
   }
 } 
