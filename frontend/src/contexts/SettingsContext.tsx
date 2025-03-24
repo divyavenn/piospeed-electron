@@ -4,10 +4,10 @@ import { AppSettings } from '../components/Settings/SettingsModal';
 interface SettingsContextType {
   settings: AppSettings;
   saveSettings: (settings: AppSettings) => Promise<void>;
-  isFirstLaunch: boolean;
-  setFirstLaunchComplete: () => Promise<void>;
   isLoading: boolean;
 }
+
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 const defaultSettings: AppSettings = {
   solverPath: null,
@@ -17,15 +17,13 @@ const defaultSettings: AppSettings = {
   accuracy: 0.02,
 };
 
-const SettingsContext = createContext<SettingsContextType>({
-  settings: defaultSettings,
-  saveSettings: async () => {},
-  isFirstLaunch: true,
-  setFirstLaunchComplete: async () => {},
-  isLoading: true,
-});
-
-export const useSettings = () => useContext(SettingsContext);
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (context === undefined) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return context;
+};
 
 interface SettingsProviderProps {
   children: React.ReactNode;
@@ -33,42 +31,31 @@ interface SettingsProviderProps {
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
-  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Load settings on initial render
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        // Check if this is the first launch
-        const hasCompletedSetup = await window.electron.getFolderPath({ key: 'hasCompletedSetup' });
+        // Load saved paths
+        const solverPath = await window.electron.getSolverPath();
+        const cfrFolder = await window.electron.getFolderPath({ key: 'cfrFolder' });
+        const strategiesFolder = await window.electron.getFolderPath({ key: 'strategiesFolder' });
+        const nodeBookFolder = await window.electron.getFolderPath({ key: 'nodeBookFolder' });
         
-        if (hasCompletedSetup === 'true') {
-          setIsFirstLaunch(false);
-          
-          // Load saved paths
-          const solverPath = await window.electron.getSolverPath();
-          const cfrFolder = await window.electron.getFolderPath({ key: 'cfrFolder' });
-          const strategiesFolder = await window.electron.getFolderPath({ key: 'strategiesFolder' });
-          const nodeBookFolder = await window.electron.getFolderPath({ key: 'nodeBookFolder' });
-          
-          // Load accuracy
-          const accuracyStr = await window.electron.getFolderPath({ key: 'accuracy' });
-          const accuracy = accuracyStr ? parseFloat(accuracyStr) : 0.02;
-          
-          setSettings({
-            solverPath,
-            cfrFolder,
-            strategiesFolder,
-            nodeBookFolder,
-            accuracy,
-          });
-        } else {
-          setIsFirstLaunch(true);
-        }
+        // Load accuracy
+        const accuracyStr = await window.electron.getFolderPath({ key: 'accuracy' });
+        const accuracy = accuracyStr ? parseFloat(accuracyStr) : 0.02;
+        
+        setSettings({
+          solverPath,
+          cfrFolder,
+          strategiesFolder,
+          nodeBookFolder,
+          accuracy,
+        });
       } catch (error) {
         console.error('Error loading settings:', error);
-        setIsFirstLaunch(true);
       } finally {
         setIsLoading(false);
       }
@@ -111,24 +98,11 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   };
 
-  // Mark first launch as complete
-  const setFirstLaunchComplete = async () => {
-    try {
-      await window.electron.saveFolderPath({ key: 'hasCompletedSetup', path: 'true' });
-      setIsFirstLaunch(false);
-    } catch (error) {
-      console.error('Error saving setup status:', error);
-      throw error;
-    }
-  };
-
   return (
     <SettingsContext.Provider
       value={{
         settings,
         saveSettings,
-        isFirstLaunch,
-        setFirstLaunchComplete,
         isLoading,
       }}
     >

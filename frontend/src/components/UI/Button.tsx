@@ -12,8 +12,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 // Styled button with variants
 const StyledButton = styled.button<{ 
-  variant: ButtonVariant; 
-  isFullWidth: boolean; 
+  $variant: ButtonVariant; 
+  $isFullWidth: boolean; 
   disabled: boolean;
 }>`
   padding: ${({ theme }) => `${theme.spacing.normal} ${theme.spacing.large}`};
@@ -27,7 +27,7 @@ const StyledButton = styled.button<{
   align-items: center;
   justify-content: center;
   gap: ${({ theme }) => theme.spacing.small};
-  width: ${({ isFullWidth }) => isFullWidth ? '100%' : 'auto'};
+  width: ${({ $isFullWidth }) => $isFullWidth ? '100%' : 'auto'};
   
   &:hover:not(:disabled) {
     transform: translateY(-2px);
@@ -38,7 +38,7 @@ const StyledButton = styled.button<{
     transform: translateY(0);
   }
   
-  ${({ variant, theme, disabled }) => {
+  ${({ $variant, disabled, theme }) => {
     if (disabled) {
       return css`
         background-color: ${theme.colors.disabled};
@@ -52,7 +52,7 @@ const StyledButton = styled.button<{
       `;
     }
     
-    switch (variant) {
+    switch ($variant) {
       case 'primary':
         return css`
           background-color: ${theme.colors.primary};
@@ -104,8 +104,8 @@ const Button: React.FC<ButtonProps> = ({
 }) => {
   return (
     <StyledButton
-      variant={variant}
-      isFullWidth={isFullWidth}
+      $variant={variant}
+      $isFullWidth={isFullWidth}
       disabled={disabled}
       {...props}
     >

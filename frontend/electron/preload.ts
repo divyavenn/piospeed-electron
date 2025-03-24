@@ -38,6 +38,7 @@ interface ElectronAPI {
   onPythonCommandComplete: (callback: (data: any) => void) => void;
   onPythonCommands: (callback: (commands: any) => void) => void;
   onPythonInputReceived: (callback: (data: any) => void) => void;
+  sendSolverPath: (path: string) => void;
 }
 
 // Expose the API to the renderer process
@@ -106,7 +107,8 @@ contextBridge.exposeInMainWorld('electron', {
     const listener = () => callback();
     ipcRenderer.on('menu:select-solver', listener);
     return () => ipcRenderer.removeListener('menu:select-solver', listener);
-  }
+  },
+  sendSolverPath: (path) => ipcRenderer.send('send-solver-path', path)
 } as ElectronAPI);
 
 // Let the renderer know preload script has loaded

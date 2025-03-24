@@ -33,8 +33,9 @@ class Program:
             PluginCommands.SET_ACCURACY: self.update_accuracy,
             PluginCommands.END: self.end}
          
-    def start(self) -> None :
-        self.commandRun()    
+    async def start(self) -> None:
+        while True:
+            await self.commandRun()    
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
@@ -58,30 +59,32 @@ class Program:
     def update_accuracy(self, args : list[str]):
         self.connection.accuracy = toFloat(args[0])
         
-    def commandRun(self):
-        inputtedCommand = self.interface.getCommand()
-        inputtedArgs = self.interface.getCommandArgs(inputtedCommand.value)
+    async def commandRun(self):
+        inputtedCommand = await self.interface.getCommand()
+        inputtedArgs = await self.interface.getCommandArgs(inputtedCommand.value)
         if inputtedArgs is None:
-            self.commandRun()
+            await self.commandRun()
         # runs the function in the program class associated with that command
         else:
-            self.commandDispatcher[inputtedCommand](inputtedArgs)
+            await self.commandDispatcher[inputtedCommand](inputtedArgs)
             if (inputtedCommand != PluginCommands.END):
-                self.commandRun()
+                await self.commandRun()
+            else:
+                await self.end([])
     
-    def tryFunction(self, func , args : list):
+    async def tryFunction(self, func, args : list):
         try:
             #command not meant to have any inputs
             if args is None or len(args) == 0:
-                return func()
+                return await func()
             #command meant to take a single input
             elif type(args) != list or len(args) == 1:
-                return func(args[0])
+                return await func(args[0])
             #command meant to take a list of
             else:
-                return func(args)
+                return await func(args)
         except Exception as e:
-            self.interface.notify(str(e))
+            await self.interface.notify(str(e))
             return None
         
     # arg[0] = nodeID

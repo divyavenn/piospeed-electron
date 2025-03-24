@@ -62,7 +62,8 @@ electron.contextBridge.exposeInMainWorld("electron", {
     const listener = () => callback();
     electron.ipcRenderer.on("menu:select-solver", listener);
     return () => electron.ipcRenderer.removeListener("menu:select-solver", listener);
-  }
+  },
+  sendSolverPath: (path) => electron.ipcRenderer.send("send-solver-path", path)
 });
 window.addEventListener("DOMContentLoaded", () => {
   const replaceText = (selector, text) => {
