@@ -8,11 +8,19 @@ const store = new Store();
 
 // Keep a global reference of the window object and Python process
 let mainWindow: BrowserWindow | null = null;
-let pythonProcess: any = null;
+let pythonProcess: ChildProcess | null = null;
 
 // Function to start Python process
 function startPythonProcess() {
-  const pythonPath = path.join(__dirname, '../python/start.py');
+  console.log("Starting Python process");
+  // In development, the Python files are in the project directory
+  // In production, they're in the resources directory
+  const isDev = process.env.NODE_ENV === 'development';
+  const pythonPath = isDev 
+    ? path.join(__dirname, '../../python/start.py')
+    : path.join(process.resourcesPath, 'python/start.py');
+
+
   pythonProcess = spawn('python', [pythonPath]);
 
   pythonProcess.stdout.on('data', (data: Buffer) => {
@@ -80,6 +88,7 @@ async function createWindow() {
     return { action: 'deny' };
   });
 
+  console.log("Starting Python process");
   // Start Python process
   startPythonProcess();
 
@@ -146,7 +155,11 @@ ipcMain.handle('select-folder', async () => {
 });
 
 // App lifecycle handlers
-app.whenReady().then(createWindow);
+app.whenReady().then(()=>{
+  console.log("App ready");
+  createWindow();
+  startPythonProcess();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

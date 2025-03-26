@@ -37,7 +37,7 @@ class ZMQService {
       this.requestSocket.send(JSON.stringify({ error: error.message }));
     }
   }
-  
+
   send(command, args) {
     return new Promise((resolve, reject) => {
       const message = JSON.stringify({ command, args });

@@ -2,7 +2,7 @@ from __future__ import annotations
 import sys
 import asyncio
 from SolverConnection.solver import Solver
-from interface import ElectronInterface
+from electronInterface import ElectronInterface
 from program import Program
 
 
@@ -10,6 +10,9 @@ async def main():
     try:
         # Initialize the Electron interface
         interface = ElectronInterface()
+        
+        # Start the bridge in a separate task so it doesn't block
+        bridge_task = asyncio.create_task(interface.start_bridge())
         
         # Get solver path from Electron settings
         solver_path = await interface.getSolverPath()
@@ -25,9 +28,11 @@ async def main():
             await program.start()
         else:
             await interface.notify("Error: Solver path not configured in settings")
+        
+        await bridge_task  # Wait for bridge task if needed
     except Exception as e:
-        await interface.notify(f"Error during startup: {str(e)}")
-
+        print(f"Error during startup: {str(e)}")
+        
 if __name__ == "__main__":
     asyncio.run(main())
 

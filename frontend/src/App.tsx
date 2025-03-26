@@ -80,12 +80,13 @@ const CenteredHeaderContainer = styled.div<{ $animate: AnimationState }>`
 `;
 
 const TaglineWrapper = styled.div<{ $animate: AnimationState }>`
-  opacity: ${({ $animate }) => $animate === 'commandPalette' ? 0 : 1};
+  opacity: ${({ $animate }) => $animate === 'commandPalette' || $animate === 'moveUp' ? 0 : 1};
   transition: opacity 0.5s ease-out;
   animation: ${({ $animate }) => 
     $animate === 'moveUp' 
       ? css`${fadeOut} 0.5s ease-out forwards` 
       : 'none'};
+  display: ${({ $animate }) => $animate === 'commandPalette' ? 'none' : 'block'};
 `;
 
 const MainContent = styled.div<{ $animate: AnimationState }>`
@@ -318,6 +319,7 @@ const RecoilApp: React.FC = () => {
   useEffect(() => {
     if (!isLoading && settings.solverPath) {
       window.electron.sendSolverPath(settings.solverPath);
+      console.log(`Sending solver path: ${settings.solverPath}`);
     }
   }, [isLoading, settings.solverPath]);
 

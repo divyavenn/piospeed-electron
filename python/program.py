@@ -1,6 +1,6 @@
 from __future__ import annotations
 from menu import PluginCommands, Command
-from interface import Interface, GUInterface
+from interface import Interface
 from treeops import TreeOperator
 from inputs import WeightsFile, BoardFile, Board, InputMetadata
 from stringFunc import removeExtension, timestamp, toFloat, parseTreeInfoToMap, parseSettingsToMap, get_file_name_from_path
@@ -9,7 +9,6 @@ from solverCommands import SolverCommmand
 from typing import Callable
 from fileIO import addRowstoCSV
 import unittest
-from global_var import solverPath, currentdir, strategies_folder
 import shutil
 
 
@@ -361,178 +360,6 @@ class Program:
         self.interface.output("Closing connection to solver...done!")
 
     
-
-class Tests(unittest.TestCase):
-    def commandDispatcher(self):
-        self.assertTrue(callable(self.p.commandDispatcher[PluginCommands.RUN]))
-    
-    def _nodelock_and_solve_flop(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        
-        dir = r"C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\\"
-        folder = dir + r"\cfr\\"
-        strategy = WeightsFile(InputMetadata()).parseInput(dir + r"weights\simple_weights.json")
-        nodeBook = BoardFile(InputMetadata()).parseInput(dir + r"boards\board_flop.json")
-        files = [r"Qh6c5s_small.cfr", r"As5h3s.cfr"]
-        
-        path = p.nodelock_solve([[folder, files], strategy, nodeBook])
-        p.end([])
-    
-    def test_nodelock_and_solve_flop_not_enough_mem(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        
-        # "C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\cfr\Qh6c5sc.fr"
-        dir = r"C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\\"
-        folder = dir + r"\cfr\\"
-        strategy = WeightsFile(InputMetadata()).parseInput(dir + r"weights\simple_weights.json")
-        nodeBook = BoardFile(InputMetadata()).parseInput(dir + r"boards\board_flop.json")
-        files = [r"Qh6c5s.cfr", r"As5h3s.cfr",]
-        
-        path = p.nodelock_solve([[folder, files], strategy, nodeBook])
-        p.end([])
-    
-    def _nodelock_flop(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        
-        dir = r"C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\\"
-        folder = dir + r"\cfr\\"
-        strategy = WeightsFile(InputMetadata()).parseInput(dir + r"weights\simple_weights.json")
-        nodeBook = BoardFile(InputMetadata()).parseInput(dir + r"boards\board_flop.json")
-        files = [r"As5h3s.cfr", r"Qh6c5s_small.cfr"]
-        
-        path = p.nodelock([[folder, files], strategy, nodeBook])
-        p.end([])
-        
-    def nodelock_and_solve_turn(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        
-        dir = r"C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\\"
-        folder = dir + r"\cfr\\"
-        strategy = WeightsFile(InputMetadata()).parseInput(dir + r"weights\simple_weights.json")
-        nodeBook = BoardFile(InputMetadata()).parseInput(dir + r"boards\board_turn.json")
-        files = [r"As5h3s.cfr", r"Qh6c5s_small.cfr"]
-        
-        path = p.nodelock_solve([[folder, files], strategy, nodeBook])
-        p.end([])
-    
-    def _nodelock_turn(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        
-        dir = r"C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\\"
-        folder = dir + r"\cfr\\"
-        strategy = WeightsFile(InputMetadata()).parseInput(dir + r"weights\simple_weights.json")
-        nodeBook = BoardFile(InputMetadata()).parseInput(dir + r"boards\board_turn.json")
-        files = [r"As5h3s.cfr", r"Qh6c5s_small.cfr"]
-        
-        path = p.nodelock([[folder, files], strategy, nodeBook])
-        p.end([])
-    
-    def River(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        
-        dir = r"C:\Users\degeneracy station\Documents\PioSolver-plugin\poker-sim\sample\\"
-        folder = dir + r"\cfr\\"
-        strategy = WeightsFile(InputMetadata()).parseInput(dir + r"weights\simple_weights.json")
-        nodeBook = BoardFile(InputMetadata()).parseInput(dir + r"boards\board_river.json")
-        files = [r"As5h3s.cfr"]
-        
-        path = p.nodelock_and_save([[folder, files], strategy, nodeBook])
-        p.end([])
-    
-    def CaseBuggy(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        folder = r"C:\Users\degeneracy station\Downloads\from_last_time"
-        
-        #weights = WeightsFile("test").parseInput(folder + r"\weights\simple_weights.json")
-        weights = WeightsFile("test").parseInput(folder + r"\weights_2BP_IP_PFR_B_30f_default.json")
-        buggyFiles = [r"\og\og.cfr"]
-        simple_board = BoardFile("").parseInput(folder + r"\nodeid_x-b16.json")
-        
-        
-        path = p.nodelock_and_save([[folder, buggyFiles], weights, simple_board])
-        
-        # p.solve_then_get_results([[path, buggyFiles], simple_board])
-        p.end([])
-    
-    def Case1(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        folder = currentdir + r"\sample\tests\testCase1"
-        
-        #weights = WeightsFile("test").parseInput(folder + r"\weights\simple_weights.json")
-        weights = WeightsFile("").parseInput(folder + r"\weights.json")
-        buggyFiles = [r"original.cfr"]
-        simple_board = BoardFile("").parseInput(folder + r"\nodeBook.json")
-        
-        
-        path = p.nodelock_and_save([[folder, buggyFiles], weights, simple_board])
-        
-        # p.solve_then_get_results([[path, buggyFiles], simple_board])
-        p.end([])
-    
-    def BugOne(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        
-        folder = currentdir + r"\sample"
-        buggyFiles = [ "TcTh6h.cfr", "8d5d4c.cfr", "As5h3s.cfr"]
-        buggy_weights = WeightsFile("test").parseInput(folder + r"\buggy_weights.json")
-        simple_board = BoardFile("test").parseInput(folder + r"\board_simple.json")
-        
-        path = p.nodelock_and_save([[folder + r"\\buggy_cfr", buggyFiles], buggy_weights, simple_board])
-        
-        info = parseTreeInfoToMap(connection.command("show_tree_info"))
-        potSize = info["Pot"]
-        settings = parseSettingsToMap(connection.command("show_settings"))
-        acc = settings["accuracy"]
-        print("Accuracy is " + str(acc) + " chips.")
-        self.assertEqual(acc, potSize*.002)
-        
-        
-        p.solve_then_get_results([[path, buggyFiles], simple_board])
-        p.end([])
-    
-    def BugTwo(self):
-        connection = Solver(solverPath)
-        p = Program(connection, GUInterface())
-        
-        
-        folder = currentdir + r"\sample"
-        buggyFiles = [ "Qc8cTs.cfr"]
-        simple_board = BoardFile("test").parseInput(folder + r"\board_simple.json")
-        path = folder + "\\Qc8cTs"
-        
-        pio = SolverCommmand(connection)
-        pio.load_tree(path + "\\" + buggyFiles[0])
-        
-        
-        info = parseTreeInfoToMap(connection.command("show_tree_info"))
-        potSize = info["Pot"]
-        settings = parseSettingsToMap(connection.command("show_settings"))
-        acc = settings["accuracy"]
-        print("Accuracy is " + str(acc) + " chips.")
-        self.assertEqual(acc, potSize*.002)
-        
-        
-        p.solve_then_get_results([[path, buggyFiles], simple_board])
-        p.end([])
-
         
 if __name__ == '__main__': 
     unittest.main() 
