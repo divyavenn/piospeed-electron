@@ -54,38 +54,87 @@ function startPythonProcess() {
   // In production, they're in the resources directory
   const isDev = process.env.NODE_ENV === 'development';
   const pythonPath = isDev 
-    ? path.join(__dirname, '../../python/start.py')
+    ? path.join(process.cwd(), '../python/start.py')  // Go up one level from frontend to reach root
     : path.join(process.resourcesPath, 'python/start.py');
 
-  pythonProcess = spawn('python', [pythonPath]);
+  console.log('Python path:', pythonPath);
+  console.log('Current directory:', process.cwd());
+  console.log('__dirname:', __dirname);
 
-  pythonProcess.on('close', (code: number) => {
-    console.log(`Python process exited with code ${code}`);
-  });
+  try {
+    // Use python3 explicitly and add -u flag for unbuffered output
+    pythonProcess = spawn('python3', ['-u', pythonPath], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: '1'
+      }
+    });
+
+    // Capture stdout
+    pythonProcess.stdout?.on('data', (data) => {
+      console.log('Python stdout:', data.toString().trim());
+    });
+
+    // Capture stderr
+    pythonProcess.stderr?.on('data', (data) => {
+      console.error('Python stderr:', data.toString().trim());
+    });
+
+    pythonProcess.on('error', (error) => {
+      console.error('Failed to start Python process:', error);
+    });
+
+    pythonProcess.on('close', (code: number) => {
+      console.log(`Python process exited with code ${code}`);
+    });
+
+    // Log if the process was created successfully
+    console.log('Python process created with PID:', pythonProcess.pid);
+  } catch (error) {
+    console.error('Error starting Python process:', error);
+  }
 }
 
 // App lifecycle handlers
 app.whenReady().then(async () => {
   console.log("App ready");
   
-  // Initialize and start the message queue first
+  // Create window first
+  createWindow();
+  
+  // Start Python process before connecting to message queue
+  startPythonProcess();
+  
+  // Wait for Python process to create the socket
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Initialize and start the message queue last
   messageQueue = new MessageQueue();
   await messageQueue.connect().catch((error: Error) => {
     console.error('Failed to connect message queue:', error);
   });
 
-  // Create window and setup handlers
-  createWindow();
   setupIpcHandlers(mainWindow!, messageQueue!, store);
-
-  // Start Python process last
-  startPythonProcess();
 });
 
+// Handle window close
 app.on('window-all-closed', () => {
+  console.log('Window closed, cleaning up...');
+  
+  // Stop the message queue
   if (messageQueue) {
     messageQueue.stop();
   }
+  
+  // Kill the Python process
+  if (pythonProcess) {
+    console.log('Killing Python process...');
+    pythonProcess.kill();
+    pythonProcess = null;
+  }
+  
+  // Quit the app
   if (process.platform !== 'darwin') {
     app.quit();
   }

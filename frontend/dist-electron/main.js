@@ -14924,9 +14924,9 @@ class MessageQueue extends require$$5.EventEmitter {
     super();
     this.isReady = false;
     this.SOCKET_NAME = "/tmp/electron_python.sock";
-    this.connectionAttempts = 0;
-    this.MAX_RETRIES = 5;
-    this.retryInterval = null;
+    this.isConnected = false;
+    this.reconnectAttempts = 0;
+    this.MAX_RECONNECT_ATTEMPTS = 3;
     this.isListening = false;
     ipc.config.id = "electron";
     ipc.config.retry = 1500;
@@ -14935,10 +14935,35 @@ class MessageQueue extends require$$5.EventEmitter {
     ipc.config.appspace = "";
   }
   async connect() {
-    ipc.connectTo("python", this.SOCKET_NAME, () => {
-      console.log("Connected to Python process");
-      this.startListening();
+    if (this.isConnected)
+      return;
+    return new Promise((resolve2, reject) => {
+      ipc.connectTo("python", this.SOCKET_NAME, () => {
+        console.log("Connected to Python process");
+        this.isConnected = true;
+        this.reconnectAttempts = 0;
+        this.startListening();
+        resolve2();
+      });
+      ipc.of.python.on("error", (error2) => {
+        console.error("Connection error:", error2);
+        this.handleDisconnect();
+        reject(error2);
+      });
+      ipc.of.python.on("disconnect", () => {
+        console.log("Disconnected from Python process");
+        this.handleDisconnect();
+      });
     });
+  }
+  handleDisconnect() {
+    this.isConnected = false;
+    this.isReady = false;
+    if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+      this.reconnectAttempts++;
+      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})...`);
+      setTimeout(() => this.connect(), 1e3);
+    }
   }
   async startListening() {
     if (this.isListening)
@@ -14953,21 +14978,31 @@ class MessageQueue extends require$$5.EventEmitter {
         this.emit("message", data);
       }
     });
-    ipc.of.python.on("error", (error2) => {
-      console.error("Error receiving message:", error2);
-      this.emit("error", error2);
-    });
   }
   async send(message) {
-    if (!this.isListening || !this.isReady) {
-      console.warn("Not connected or Python process not ready, message not sent");
+    if (!this.isConnected) {
+      console.warn("Not connected to Python process");
       return;
     }
-    ipc.of.python.emit("message", message);
+    if (!this.isListening || !this.isReady) {
+      console.warn("Not ready to send message");
+      return;
+    }
+    try {
+      ipc.of.python.emit("message", message);
+    } catch (error2) {
+      console.error("Error sending message:", error2);
+      this.handleDisconnect();
+      throw error2;
+    }
   }
   stop() {
     this.isListening = false;
-    ipc.disconnect("python");
+    this.isConnected = false;
+    this.isReady = false;
+    if (ipc.of.python) {
+      ipc.disconnect("python");
+    }
   }
 }
 const store = new Store();
@@ -15000,27 +15035,58 @@ async function createWindow() {
   });
 }
 function startPythonProcess() {
+  var _a, _b;
   console.log("Starting Python process");
   const isDev = process.env.NODE_ENV === "development";
-  const pythonPath = isDev ? require$$0__namespace.join(__dirname, "../../python/start.py") : require$$0__namespace.join(process.resourcesPath, "python/start.py");
-  pythonProcess = child_process.spawn("python", [pythonPath]);
-  pythonProcess.on("close", (code2) => {
-    console.log(`Python process exited with code ${code2}`);
-  });
+  const pythonPath = isDev ? require$$0__namespace.join(process.cwd(), "../python/start.py") : require$$0__namespace.join(process.resourcesPath, "python/start.py");
+  console.log("Python path:", pythonPath);
+  console.log("Current directory:", process.cwd());
+  console.log("__dirname:", __dirname);
+  try {
+    pythonProcess = child_process.spawn("python3", ["-u", pythonPath], {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: "1"
+      }
+    });
+    (_a = pythonProcess.stdout) == null ? void 0 : _a.on("data", (data) => {
+      console.log("Python stdout:", data.toString().trim());
+    });
+    (_b = pythonProcess.stderr) == null ? void 0 : _b.on("data", (data) => {
+      console.error("Python stderr:", data.toString().trim());
+    });
+    pythonProcess.on("error", (error2) => {
+      console.error("Failed to start Python process:", error2);
+    });
+    pythonProcess.on("close", (code2) => {
+      console.log(`Python process exited with code ${code2}`);
+    });
+    console.log("Python process created with PID:", pythonProcess.pid);
+  } catch (error2) {
+    console.error("Error starting Python process:", error2);
+  }
 }
 require$$1$2.app.whenReady().then(async () => {
   console.log("App ready");
+  createWindow();
+  startPythonProcess();
+  await new Promise((resolve2) => setTimeout(resolve2, 1e3));
   messageQueue = new MessageQueue();
   await messageQueue.connect().catch((error2) => {
     console.error("Failed to connect message queue:", error2);
   });
-  createWindow();
   setupIpcHandlers(mainWindow, messageQueue, store);
-  startPythonProcess();
 });
 require$$1$2.app.on("window-all-closed", () => {
+  console.log("Window closed, cleaning up...");
   if (messageQueue) {
     messageQueue.stop();
+  }
+  if (pythonProcess) {
+    console.log("Killing Python process...");
+    pythonProcess.kill();
+    pythonProcess = null;
   }
   if (process.platform !== "darwin") {
     require$$1$2.app.quit();

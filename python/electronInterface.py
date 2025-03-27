@@ -17,10 +17,9 @@ class ElectronInterface(Interface):
     async def getSolverPath(self) -> str:
         # Request solver path from Electron settings
         request = json.dumps({"type": "get_solver_path"})
-        await self.bridge.send("settings_request", request)
-        response = await self.bridge.recieve()
+        response = await self.bridge.send("settings_request", request, expect_response=True)
         
-        if response.get('type') == 'solver_path':
+        if response and response.get('type') == 'solver_path':
             self.solver_path = response['path']
             return self.solver_path
             
@@ -33,7 +32,7 @@ class ElectronInterface(Interface):
         
     async def getCommand(self) -> PluginCommands:
         # Wait for React app to send the command via electron_bridge
-        commandKey = await self.bridge.recieve()
+        commandKey = await self.bridge.receive()
         if commandKey not in self.commandMap:
             await self.notify(f"Invalid command: {commandKey}")
             return await self.getCommand()
@@ -50,13 +49,13 @@ class ElectronInterface(Interface):
         
     async def notify(self, message) -> None:
         # Send message back to React via electron_bridge
-        await self.bridge.send("notification", message)
+        await self.bridge.send("notification", message, expect_response=False)
 
     async def getText(self, metadata) -> str:
         while True:
             request = json.dumps({"type": "text", "message": metadata.prompt})
-            await self.bridge.send("text_input", request)
-            response = await self.bridge.recieve()
+            await self.bridge.send("text_input", request, expect_response=True)
+            response = await self.bridge.receive()
             
             try:
                 return metadata.parseInput(response)
@@ -67,8 +66,8 @@ class ElectronInterface(Interface):
     async def getFilePath(self, metadata : InputMetadata) -> str:
         while True:
             request = json.dumps({"type": "filepath", "message": metadata.prompt})
-            await self.bridge.send("file_input", request)
-            response = await self.bridge.recieve()
+            await self.bridge.send("file_input", request, expect_response=True)
+            response = await self.bridge.receive()
             
             try:
                 return metadata.parseInput(response)
@@ -79,8 +78,8 @@ class ElectronInterface(Interface):
     async def getFolder(self, metadata : InputMetadata) -> str:
         while True:
             request = json.dumps({"type": "folder", "message": metadata.prompt})
-            await self.bridge.send("folder_input", request)
-            response = await self.bridge.recieve()
+            await self.bridge.send("folder_input", request, expect_response=True)
+            response = await self.bridge.receive()
             
             try:
                 return metadata.parseInput(response)
@@ -92,6 +91,7 @@ class ElectronInterface(Interface):
         asyncio.create_task(self.notify(message))
         
     async def start_bridge(self):
+        print("Starting bridge")
         # Simply calls the run method of the MessageQueue
         await self.bridge.run()
         

@@ -84,9 +84,12 @@ const RecoilApp: React.FC = () => {
 
     // Listen for Python ready message
     const handlePythonMessage = (data: any) => {
-      if (data.type === 'ready') {
+      if (data.status === 'ready') {
         console.log('Python is ready, checking solver path...');
         checkSolverPath();
+      }
+      else {
+        console.log('Received message from Python:', data);
       }
     };
 

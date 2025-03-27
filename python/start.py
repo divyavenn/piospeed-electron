@@ -8,6 +8,7 @@ from program import Program
 
 async def main():
     try:
+        print("Starting main")
         # Initialize the Electron interface
         interface = ElectronInterface()
         
