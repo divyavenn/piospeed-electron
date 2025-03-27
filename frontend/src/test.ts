@@ -1,15 +1,15 @@
-import { MessageQueue, Message } from './messageQueue';
+const { MessageQueue } = require('./messageQueue');
 
-async function testCommunication(): Promise<void> {
+async function testCommunication() {
     const mq = new MessageQueue();
     
     // Set up message listener
-    mq.on('message', (data: Message) => {
+    mq.on('message', (data) => {
         console.log('Received message:', data);
     });
 
     // Set up error listener
-    mq.on('error', (error: Error) => {
+    mq.on('error', (error) => {
         console.error('Error:', error);
     });
 
@@ -17,7 +17,7 @@ async function testCommunication(): Promise<void> {
     await mq.connect();
 
     // Send a test message
-    const testMessage: Message = {
+    const testMessage = {
         type: 'test',
         data: { message: 'Hello from TypeScript!' }
     };

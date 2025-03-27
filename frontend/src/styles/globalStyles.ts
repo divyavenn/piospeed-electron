@@ -1,65 +1,8 @@
 import { createGlobalStyle } from 'styled-components';
+import  theme from './theme';
 
 // Define theme colors and properties
-export const theme = {
-  colors: {
-    background: '#0A0F1F',
-    surface: '#151E33',
-    surfaceLight: '#1E283A',
-    surfaceBorder: '#2C3E50',
-    primary: '#3961FB',
-    primaryDark: '#2E52E0',
-    secondary: '#FF9800',
-    secondaryDark: '#F57C00',
-    text: '#e1e1e8',
-    textHighlight: '#FFFFFF',
-    textFaded: '#B3E5FC',
-    error: '#FF5252',
-    disabled: '#45526e',
-    border: '#384860',
-  },
-  fonts: {
-    primary: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    monospace: 'Monaco, Consolas, "Courier New", monospace',
-  },
-  sizes: {
-    small: '0.9rem',
-    normal: '1rem',
-    medium: '1.1rem',
-    large: '1.4rem',
-    xlarge: '2.5rem',
-  },
-  borderRadius: {
-    small: '4px',
-    normal: '6px',
-    large: '8px',
-  },
-  spacing: {
-    xs: '4px',
-    small: '8px',
-    normal: '12px',
-    medium: '16px',
-    large: '20px',
-    xl: '24px',
-    xxl: '32px',
-  },
-  shadows: {
-    small: '0 2px 4px rgba(0, 0, 0, 0.2)',
-    normal: '0 4px 8px rgba(0, 0, 0, 0.2)',
-    large: '0 5px 15px rgba(0, 0, 0, 0.3)',
-    glow: '0 0 10px rgba(57, 97, 251, 0.3)',
-  },
-  animations: {
-    pulse: '@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(57, 97, 251, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(57, 97, 251, 0); } 100% { box-shadow: 0 0 0 0 rgba(57, 97, 251, 0); } }',
-  },
-  transitions: {
-    normal: 'all 0.3s ease',
-    fast: 'all 0.15s ease',
-  },
-};
-
-// Global styles
-export const GlobalStyle = createGlobalStyle<{ theme: typeof theme }>`
+export const GlobalStyle = createGlobalStyle`
   * {
     margin: 0;
     padding: 0;
@@ -67,13 +10,33 @@ export const GlobalStyle = createGlobalStyle<{ theme: typeof theme }>`
   }
 
   body {
-    font-family: ${({ theme }) => theme.fonts.primary};
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     background-color: ${({ theme }) => theme.colors.background};
     color: ${({ theme }) => theme.colors.text};
     line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+  }
+
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+      monospace;
+  }
+
+  button {
+    cursor: pointer;
+    border: none;
+    outline: none;
+    background: none;
+    font-family: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 
   /* Set a more readable selection color */
@@ -116,7 +79,6 @@ export const GlobalStyle = createGlobalStyle<{ theme: typeof theme }>`
 
   /* Default button and input styling */
   button, input {
-    font-family: ${({ theme }) => theme.fonts.primary};
     font-size: ${({ theme }) => theme.sizes.normal};
   }
 

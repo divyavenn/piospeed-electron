@@ -14,25 +14,6 @@ let pythonProcess: ChildProcess | null = null;
 let messageQueue: MessageQueue | null = null; 
 
 
-// Function to start Python process
-function startPythonProcess() {
-  console.log("Starting Python process");
-  // In development, the Python files are in the project directory
-  // In production, they're in the resources directory
-  const isDev = process.env.NODE_ENV === 'development';
-  const pythonPath = isDev 
-    ? path.join(__dirname, '../../python/start.py')
-    : path.join(process.resourcesPath, 'python/start.py');
-
-
-  pythonProcess = spawn('python', [pythonPath]);
-
-  pythonProcess.on('close', (code: number) => {
-    console.log(`Python process exited with code ${code}`);
-  });
-}
-
-
 async function createWindow() {
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -64,30 +45,40 @@ async function createWindow() {
     shell.openExternal(url);
     return { action: 'deny' };
   });
- 
-    // Initialize and start the message queue
-  messageQueue = new MessageQueue();
-  messageQueue.connect().catch((error: Error) => {
-      console.error('Failed to connect message queue:', error);
-  });
-
-  // Listen for messages
-  messageQueue.on('message', (data: any) => {
-      console.log('Received message:', data);
-      // You can send messages to your renderer process here
-      mainWindow?.webContents.send('python-message', data);
-  });
-
 }
 
+// Function to start Python process
+function startPythonProcess() {
+  console.log("Starting Python process");
+  // In development, the Python files are in the project directory
+  // In production, they're in the resources directory
+  const isDev = process.env.NODE_ENV === 'development';
+  const pythonPath = isDev 
+    ? path.join(__dirname, '../../python/start.py')
+    : path.join(process.resourcesPath, 'python/start.py');
 
+  pythonProcess = spawn('python', [pythonPath]);
 
+  pythonProcess.on('close', (code: number) => {
+    console.log(`Python process exited with code ${code}`);
+  });
+}
 
 // App lifecycle handlers
-app.whenReady().then(()=>{
+app.whenReady().then(async () => {
   console.log("App ready");
+  
+  // Initialize and start the message queue first
+  messageQueue = new MessageQueue();
+  await messageQueue.connect().catch((error: Error) => {
+    console.error('Failed to connect message queue:', error);
+  });
+
+  // Create window and setup handlers
   createWindow();
-  setupIpcHandlers(messageQueue, store);
+  setupIpcHandlers(mainWindow!, messageQueue!, store);
+
+  // Start Python process last
   startPythonProcess();
 });
 

@@ -1,10 +1,25 @@
 interface ElectronAPI {
+  // File operations
   selectSolverPath: () => Promise<string | null>;
+  selectFile: (options: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>;
   selectFolder: () => Promise<string | null>;
+  
+  // Store operations
+  saveFolderPath: (params: { key: string; path: string }) => Promise<boolean>;
+  getFolderPath: (params: { key: string }) => Promise<string | null>;
+  getFilePath: (params: { key: string }) => Promise<string | null>;
+  getSolverPath: () => Promise<string | null>;
+  
+  // Python bridge operations
   sendSolverPath: (path: string) => void;
-  // Add other methods that your Electron API exposes
+  onPythonMessage: (callback: (data: any) => void) => void;
+  removePythonMessageListener: (callback: (data: any) => void) => void;
 }
 
-declare interface Window {
-  electron: ElectronAPI;
+declare global {
+  interface Window {
+    electron: ElectronAPI;
+  }
 }
+
+export {};

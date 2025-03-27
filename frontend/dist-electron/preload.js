@@ -10,7 +10,13 @@ electron.contextBridge.exposeInMainWorld("electron", {
   getFolderPath: (params) => electron.ipcRenderer.invoke("get-folder-path", params),
   getSolverPath: () => electron.ipcRenderer.invoke("get-solver-path"),
   // Python bridge operations
-  sendSolverPath: (path) => electron.ipcRenderer.send("send-solver-path", path)
+  sendSolverPath: (path) => electron.ipcRenderer.send("send-solver-path", path),
+  onPythonMessage: (callback) => {
+    electron.ipcRenderer.on("python-message", (_, data) => callback(data));
+  },
+  removePythonMessageListener: (callback) => {
+    electron.ipcRenderer.removeListener("python-message", callback);
+  }
 });
 window.addEventListener("DOMContentLoaded", () => {
   const replaceText = (selector, text) => {

@@ -24,6 +24,8 @@ interface ElectronAPI {
   
   // Python bridge operations
   sendSolverPath: (path: string) => void;
+  onPythonMessage: (callback: (data: any) => void) => void;
+  removePythonMessageListener: (callback: (data: any) => void) => void;
 }
 
 // Expose the API to the renderer process
@@ -39,7 +41,13 @@ contextBridge.exposeInMainWorld('electron', {
   getSolverPath: () => ipcRenderer.invoke('get-solver-path'),
   
   // Python bridge operations
-  sendSolverPath: (path) => ipcRenderer.send('send-solver-path', path)
+  sendSolverPath: (path) => ipcRenderer.send('send-solver-path', path),
+  onPythonMessage: (callback: (data: any) => void) => {
+    ipcRenderer.on('python-message', (_, data) => callback(data));
+  },
+  removePythonMessageListener: (callback: (data: any) => void) => {
+    ipcRenderer.removeListener('python-message', callback);
+  }
 } as ElectronAPI);
 
 // Let the renderer know preload script has loaded

@@ -12,7 +12,11 @@ export interface Message {
 
 export class MessageQueue extends EventEmitter {
   private isListening: boolean;
+  private isReady: boolean = false;
   private readonly SOCKET_NAME = '/tmp/electron_python.sock';
+  private connectionAttempts: number = 0;
+  private readonly MAX_RETRIES = 5;
+  private retryInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     super();
@@ -36,7 +40,13 @@ export class MessageQueue extends EventEmitter {
     this.isListening = true;
 
     ipc.of.python.on('message', (data: Message) => {
-      this.emit('message', data);
+      if (data.type === 'ready') {
+        console.log('Python process is ready');
+        this.isReady = true;
+        this.emit('ready');
+      } else {
+        this.emit('message', data);
+      }
     });
 
     ipc.of.python.on('error', (error: Error) => {
@@ -46,6 +56,10 @@ export class MessageQueue extends EventEmitter {
   }
 
   async send(message: Message): Promise<void> {
+    if (!this.isListening || !this.isReady) {
+      console.warn('Not connected or Python process not ready, message not sent');
+      return;
+    }
     ipc.of.python.emit('message', message);
   }
 

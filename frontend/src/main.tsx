@@ -1,11 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { GlobalStyle } from './styles/globalStyles';
+import  theme from './styles/theme';
 import { ThemeProvider } from 'styled-components';
-import { GlobalStyle, theme } from './styles/globalStyles';
 import { SettingsProvider } from './contexts/SettingsContext';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
       <GlobalStyle />
@@ -13,5 +14,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <App />
       </SettingsProvider>
     </ThemeProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 ); 

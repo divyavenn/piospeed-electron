@@ -1,7 +1,8 @@
-import { dialog, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, dialog } from 'electron';
 import { MessageQueue } from './messageQueue';
+import Store from 'electron-store';
 
-export function setupIpcHandlers(messageQueue: MessageQueue, store: Store) {
+export function setupIpcHandlers(mainWindow: BrowserWindow, messageQueue: MessageQueue, store: Store) {
     ipcMain.handle('send-to-python', async (_, message) => {
         try {
             await messageQueue.send(message);
@@ -38,4 +39,9 @@ export function setupIpcHandlers(messageQueue: MessageQueue, store: Store) {
         return store.get('solverPath');
     });
 
+    // Handle regular Python messages
+    messageQueue.on('message', (data: any) => {
+      console.log('Received message from Python:', data);
+      mainWindow?.webContents.send('python-message', data);
+    });
 }

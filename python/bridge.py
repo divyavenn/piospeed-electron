@@ -36,13 +36,26 @@ class MessageQueue:
         
     async def run(self):
         print("Starting message loop...")
-        while True:
-            try:
-                await self.receive()  # Wait for messages
-                # Process message here
-                await self.send("success", "Message received")
-            except Exception as e:
-                print(f"Error in message loop: {e}")
+        try:
+            # Send ready message to indicate initialization is complete
+            await self.send_message({
+                "type": "ready",
+                "data": None
+            })
+            
+            while True:
+                try:
+                    data = await self.receive_message()
+                    if data:
+                        # Process the message
+                        await self.handle_message(data)
+                except Exception as e:
+                    print(f"Error processing message: {e}")
+                    break
+        except Exception as e:
+            print(f"Error in message loop: {e}")
+        finally:
+            self.cleanup()
 
     def __del__(self):
         try:

@@ -8,6 +8,8 @@ interface ElectronAPI {
   getFolderPath: (options: { key: string }) => Promise<string | null>;
   saveFolderPath: (options: { key: string; path: string }) => Promise<void>;
   sendSolverPath: (path: string) => void;
+  onPythonReady: (callback: () => void) => void;
+  removePythonReadyListener: (callback: () => void) => void;
 }
 
 const api: ElectronAPI = {
@@ -18,6 +20,12 @@ const api: ElectronAPI = {
   getFolderPath: (options) => ipcRenderer.invoke('get-folder-path', options),
   saveFolderPath: (options) => ipcRenderer.invoke('save-folder-path', options),
   sendSolverPath: (path) => ipcRenderer.send('send-solver-path', path),
+  onPythonReady: (callback: () => void) => {
+    ipcRenderer.on('python-ready', callback);
+  },
+  removePythonReadyListener: (callback: () => void) => {
+    ipcRenderer.removeListener('python-ready', callback);
+  }
 };
 
 contextBridge.exposeInMainWorld('electron', api); 

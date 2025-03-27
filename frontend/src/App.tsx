@@ -63,7 +63,7 @@ const RecoilApp: React.FC = () => {
   const [saveType, setSaveType] = useRecoilState(saveTypeState);
   const [nodelock, setNodelock] = useRecoilState(nodelockState);
 
-  // Check solver path on component mount
+  // Check solver path on component mount and after Python is ready
   useEffect(() => {
     const checkSolverPath = async () => {
       try {
@@ -82,7 +82,20 @@ const RecoilApp: React.FC = () => {
       }
     };
 
-    checkSolverPath();
+    // Listen for Python ready message
+    const handlePythonMessage = (data: any) => {
+      if (data.type === 'ready') {
+        console.log('Python is ready, checking solver path...');
+        checkSolverPath();
+      }
+    };
+
+    window.electron.onPythonMessage(handlePythonMessage);
+
+    // Cleanup listener on unmount
+    return () => {
+      window.electron.removePythonMessageListener(handlePythonMessage);
+    };
   }, []);
 
   // Control the animation sequence
