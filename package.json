@@ -1,5 +1,9 @@
 {
   "dependencies": {
-    "recoil": "^0.7.7"
+    "recoil": "^0.7.7",
+    "zeromq": "^6.3.0"
+  },
+  "devDependencies": {
+    "@types/zeromq": "^5.2.5"
   }
 }

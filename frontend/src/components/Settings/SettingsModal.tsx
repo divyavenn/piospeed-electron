@@ -9,8 +9,8 @@ import PathDisplay from '../UI/PathDisplay';
 export interface AppSettings {
   solverPath: string | null;
   cfrFolder: string | null;
-  strategiesFolder: string | null;
-  nodeBookFolder: string | null;
+  weights: string | null;
+  nodeBook: string | null;
   accuracy: number;
 }
 
@@ -58,8 +58,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [formValues, setFormValues] = useState<AppSettings>({
     solverPath: null,
     cfrFolder: null,
-    strategiesFolder: null,
-    nodeBookFolder: null,
+    weights: null,
+    nodeBook: null,
     accuracy: 0.02,
   });
 
@@ -91,9 +91,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     
     if (key === 'solverPath') {
       path = await window.electron.selectSolverPath();
-    } else {
+    } else if (key === 'cfrFolder') {
       path = await window.electron.selectFolder();
     }
+    else path = await window.electron.selectFile();
     
     if (path) {
       setFormValues(prev => ({ ...prev, [key]: path }));

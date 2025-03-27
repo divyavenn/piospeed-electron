@@ -2,6 +2,9 @@ import zmq
 import json
 import sys
 import socket
+import os
+print(f"Current user: {os.getuid()}")
+print(f"Tmp directory permissions: {os.stat('/tmp').st_mode}")
 
 def print_host_info():
     hostname = socket.gethostname()
@@ -10,34 +13,22 @@ def print_host_info():
     print(f"Local IP: {local_ip}")
 
 class MessageQueue:
-    def __init__(self, python="tcp://127.0.0.1:5559", react="tcp://127.0.0.1:5558"):
-        print_host_info()
+    def __init__(self):
         self.context = zmq.Context()
-        self.me = self.context.socket(zmq.REP)
-        self.me.setsockopt(zmq.LINGER, 0)  # Don't wait on close
-        self.me.setsockopt(zmq.RCVTIMEO, 1000)  # Receive timeout
-        self.me.bind(python)
-        
-        # Publisher socket for notifications
-        self.him = self.context.socket(zmq.PUB)
-        self.him.setsockopt(zmq.LINGER, 0)
-        self.him.bind(react)
+        self.socket = self.context.socket(zmq.PAIR)
+        self.socket.bind("ipc:///tmp/electron_test")
         
         print("ZeroMQ server started, waiting for messages...")
 
-    async def recieve(self, message):
-        # Read from stdin for direct messages from Electron
-        while True:
-            line = sys.stdin.readline().strip()
-            if line.startswith('SET_SOLVER_PATH:'):
-                solver_path = line.replace('SET_SOLVER_PATH:', '')
-                return {'type': 'solver_path', 'path': solver_path}
-            elif line:
-                try:
-                    return json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-        return self.me.recv_json()
+    async def receive(self):
+        try:
+            # Read from the ZMQ socket
+            message = await self.socket.recv_json()
+            print(f"Received message: {message}")
+            return message
+        except zmq.error.Again:
+            # Handle timeout
+            return None
 
     async def send(self, status, message):
         message = json.dumps({'status': status, 'message': message})
@@ -47,15 +38,18 @@ class MessageQueue:
         print("Starting message loop...")
         while True:
             try:
-                message = await self.recieve(None)  # Wait for messages
-                print(f"Received message: {message}")
+                await self.receive()  # Wait for messages
                 # Process message here
                 await self.send("success", "Message received")
             except Exception as e:
                 print(f"Error in message loop: {e}")
-        
+
     def __del__(self):
-        self.me.close()
-        self.him.close()
-        self.context.term()
+        try:
+            if hasattr(self, 'socket'):
+                self.socket.close()
+            if hasattr(self, 'context'):
+                self.context.term()
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
         

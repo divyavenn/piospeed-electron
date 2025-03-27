@@ -11,7 +11,7 @@ async def main():
         # Initialize the Electron interface
         interface = ElectronInterface()
         
-        # Start the bridge in a separate task so it doesn't block
+        # Starts socket in a separate task so it doesn't block other operations
         bridge_task = asyncio.create_task(interface.start_bridge())
         
         # Get solver path from Electron settings

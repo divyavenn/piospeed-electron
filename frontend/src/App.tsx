@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import styled, { keyframes, css } from 'styled-components';
 import { RecoilRoot, useRecoilState, useRecoilValue } from 'recoil';
 import Background from './components/layout/Background';
 import Header from './components/layout/Header';
@@ -22,335 +21,99 @@ import {
   getCommandDescription,
   AnimationState,
 } from './recoil/atoms';
-
-
-// Animation keyframes
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to { opacity: 1; }
-`;
-
-const moveUp = keyframes`
-  from { transform: translateY(calc(50vh - 200px)); }
-  to { transform: translateY(100px); }
-`;
-
-const fadeOut = keyframes`
-  from { opacity: 1; }
-  to { opacity: 0; }
-`;
-
-const AppContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  padding: ${({ theme }) => theme.spacing.large};
-  max-width: 1200px;
-  margin: 0 auto;
-  position: relative;
-`;
-
-const SettingsButtonContainer = styled.div`
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 20;
-`;
-
-const CenteredHeaderContainer = styled.div<{ $animate: AnimationState }>`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  position: relative;
-  z-index: 10;
-  transform: ${({ $animate }) => 
-    $animate === 'intro' || $animate === 'moveUp' 
-      ? 'translateY(calc(50vh - 200px))' 
-      : 'translateY(100px)'};
-  transition: transform 0.8s ease-out;
-  animation: ${({ $animate }) => 
-    $animate === 'intro' 
-      ? css`${fadeIn} 1s ease-out forwards` 
-      : $animate === 'moveUp'
-        ? css`${moveUp} 0.8s ease-out forwards`
-        : 'none'};
-  margin-bottom: ${({ $animate }) => $animate !== 'intro' ? '50px' : '0'};
-`;
-
-const TaglineWrapper = styled.div<{ $animate: AnimationState }>`
-  opacity: ${({ $animate }) => $animate === 'commandPalette' || $animate === 'moveUp' ? 0 : 1};
-  transition: opacity 0.5s ease-out;
-  animation: ${({ $animate }) => 
-    $animate === 'moveUp' 
-      ? css`${fadeOut} 0.5s ease-out forwards` 
-      : 'none'};
-  display: ${({ $animate }) => $animate === 'commandPalette' ? 'none' : 'block'};
-`;
-
-const MainContent = styled.div<{ $animate: AnimationState }>`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: ${({ theme }) => theme.spacing.large};
-  opacity: 0;
-  transform: translateY(20px);
-  transition: ${({ theme }) => theme.transitions.normal};
-  
-  ${({ $animate, theme }) => {
-    switch ($animate) {
-      case 'intro':
-        return css`
-          opacity: 1;
-          transform: translateY(0);
-        `;
-      case 'moveUp':
-        return css`
-          opacity: 1;
-          transform: translateY(-100px);
-        `;
-      case 'commandPalette':
-        return css`
-          opacity: 1;
-          transform: translateY(-100px);
-        `;
-      default:
-        return '';
-    }
-  }}
-`;
-
-const ContentSection = styled.div`
-  width: 100%;
-  max-width: 800px;
-  padding: ${({ theme }) => theme.spacing.medium};
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
-
-const LoadingScreen = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  color: ${({ theme }) => theme.colors.textHighlight};
-  background-color: ${({ theme }) => theme.colors.background};
-`;
-
-const DescriptionText = styled.p`
-  margin-bottom: 50px;
-  font-size: 1.1em;
-  color: ${({ theme }) => theme.colors.textFaded};
-  line-height: 1.5;
-  text-align: center;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-`;
-
-const CommandPalette = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: ${({ theme }) => theme.spacing.medium};
-  margin-bottom: ${({ theme }) => theme.spacing.large};
-  width: 100%;
-  max-width: 700px;
-`;
-
-const ToggleGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 180px;
-`;
-
-const ToggleLabel = styled.div`
-  color: ${({ theme }) => theme.colors.textFaded};
-  margin-bottom: ${({ theme }) => theme.spacing.small};
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
-  text-align: center;
-`;
-
-const ToggleContainer = styled.div`
-  display: flex;
-  align-items: center;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-radius: ${({ theme }) => theme.borderRadius.normal};
-  padding: ${({ theme }) => theme.spacing.xs};
-  box-shadow: ${({ theme }) => theme.shadows.small};
-`;
-
-const ToggleOption = styled.span<{ $active: boolean }>`
-  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.small}`};
-  border-radius: ${({ theme }) => theme.borderRadius.small};
-  cursor: pointer;
-  background-color: ${({ $active, theme }) => $active ? theme.colors.primary : 'transparent'};
-  color: ${({ $active, theme }) => $active ? theme.colors.textLight : theme.colors.textFaded};
-  transition: all 0.2s ease;
-  
-  &:hover {
-    color: ${({ $active, theme }) => $active ? theme.colors.textLight : theme.colors.textHighlight};
-  }
-`;
-
-const ToggleOptionDivider = styled.span`
-  margin: 0 ${({ theme }) => theme.spacing.xs};
-  color: ${({ theme }) => theme.colors.textFaded};
-`;
-
-const pulseAnimation = keyframes`
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
-`;
-
-const glowRipple = keyframes`
-  0% { 
-    box-shadow: 0 0 0 0 rgba(81, 147, 253, 0.7);
-    transform: scale(1);
-  }
-  70% { 
-    box-shadow: 0 0 0 10px rgba(81, 147, 253, 0);
-    transform: scale(1.02);
-  }
-  100% { 
-    box-shadow: 0 0 0 0 rgba(81, 147, 253, 0);
-    transform: scale(1);
-  }
-`;
-
-const spinAnimation = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
-
-const ExecutionContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  padding: ${({ theme }) => theme.spacing.large};
-`;
-
-const ExecutionStatus = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  margin-bottom: ${({ theme }) => theme.spacing.large};
-`;
-
-const ExecutionTitle = styled.h2`
-  color: ${({ theme }) => theme.colors.primary};
-  margin-bottom: ${({ theme }) => theme.spacing.medium};
-  animation: ${pulseAnimation} 2s infinite ease-in-out;
-`;
-
-const ExecutionStep = styled.div`
-  font-size: 0.9rem;
-  color: ${({ theme }) => theme.colors.textHighlight};
-  margin-top: ${({ theme }) => theme.spacing.medium};
-`;
-
-const Spinner = styled.div`
-  width: 50px;
-  height: 50px;
-  border: 4px solid ${({ theme }) => theme.colors.surfaceLight};
-  border-top: 4px solid ${({ theme }) => theme.colors.primary};
-  border-radius: 50%;
-  animation: ${spinAnimation} 1s linear infinite;
-  margin: ${({ theme }) => theme.spacing.large} 0;
-`;
-
-const ExecuteButton = styled(Button)`
-  margin-top: 100px;
-  margin-bottom: ${({ theme }) => theme.spacing.xxl};
-  width: 100%;
-  max-width: 180px;
-  animation: ${glowRipple} 2s infinite cubic-bezier(0.36, 0.11, 0.89, 0.32);
-  
-  &:hover {
-    animation-play-state: paused;
-  }
-  
-  &:disabled {
-    animation: none;
-  }
-`;
-
-const CommandDescriptionText = styled.p`
-  font-size: 14px;
-  color: ${({ theme }) => theme.colors.text.secondary};
-  margin-top: ${({ theme }) => theme.spacing.xs};
-  margin-bottom: ${({ theme }) => theme.spacing.small};
-  min-height: 40px;
-`;
-
-const Tagline = styled.div`
-  font-size: ${({ theme }) => theme.sizes.large};
-  color: ${({ theme }) => theme.colors.textFaded};
-  margin-top: ${({ theme }) => theme.spacing.medium};
-  text-align: center;
-`;
+import {
+  AppContainer,
+  SettingsButtonContainer,
+  CenteredHeaderContainer,
+  TaglineWrapper,
+  MainContent,
+  ContentSection,
+  LoadingScreen,
+  DescriptionText,
+  CommandPalette,
+  ToggleGroup,
+  ToggleLabel,
+  ToggleContainer,
+  ToggleOption,
+  ToggleOptionDivider,
+  ExecutionContainer,
+  ExecutionStatus,
+  ExecutionTitle,
+  ExecutionStep,
+  Spinner,
+  ExecuteButton,
+  CommandDescriptionText,
+  Tagline,
+  ErrorText,
+} from './styles/AppStyles';
 
 // Create a RecoilApp component to use hooks (RecoilRoot cannot use hooks directly)
 const RecoilApp: React.FC = () => {
-  const { settings, isLoading, saveSettings } = useSettings();
-  const [settingsModalOpen, setSettingsModalOpen] = useRecoilState(settingsModalOpenState);
-  const [isNodelock, setIsNodelock] = useRecoilState(nodelockState);
-  const [solveType, setSolveType] = useRecoilState(solveTypeState);
-  const [saveType, setSaveType] = useRecoilState(saveTypeState);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [solverPath, setSolverPath] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const { settings } = useSettings();
+  const [isSettingsOpen, setIsSettingsOpen] = useRecoilState(settingsModalOpenState);
   const [isRunning, setIsRunning] = useRecoilState(isRunningState);
   const [currentStep, setCurrentStep] = useRecoilState(currentStepState);
-  const [animState, setAnimState] = useRecoilState(animationState);
-  
-  // Use the direct values and derived command state
   const currentCommand = useRecoilValue(currentCommandState);
   const hasCommandSelected = useRecoilValue(hasCommandSelectedState);
+  const [animation, setAnimation] = useRecoilState(animationState);
+  const [solveType, setSolveType] = useRecoilState(solveTypeState);
+  const [saveType, setSaveType] = useRecoilState(saveTypeState);
+  const [nodelock, setNodelock] = useRecoilState(nodelockState);
 
-  // Send solver path to Python when settings are loaded
+  // Check solver path on component mount
   useEffect(() => {
-    if (!isLoading && settings.solverPath) {
-      window.electron.sendSolverPath(settings.solverPath);
-      console.log(`Sending solver path: ${settings.solverPath}`);
-    }
-  }, [isLoading, settings.solverPath]);
+    const checkSolverPath = async () => {
+      try {
+        const path = await window.electron.selectSolverPath();
+        if (!path) {
+          setError('Please set solver executable path in settings.');
+          setIsLoading(false);
+          return;
+        }
+        setSolverPath(path);
+        window.electron.sendSolverPath(path);
+        setIsLoading(false);
+      } catch (err) {
+        setError('Failed to load solver path. Please check settings.');
+        setIsLoading(false);
+      }
+    };
+
+    checkSolverPath();
+  }, []);
 
   // Control the animation sequence
   useEffect(() => {
     if (isLoading) return;
     
     // Step 1: Show intro animation in center of screen
-    setAnimState('intro');
+    setAnimation('intro');
     
     // Step 2: After 1.5 seconds, move header up, fade out subtitle
     const moveUpTimer = setTimeout(() => {
-      setAnimState('moveUp');
+      setAnimation('moveUp');
     }, 1500);
     
     // Step 3: After transition completes, show command palette
     const showCommandsTimer = setTimeout(() => {
-      setAnimState('commandPalette');
+      setAnimation('commandPalette');
     }, 2300); // 1500ms + 800ms for animation
     
     return () => {
       clearTimeout(moveUpTimer);
       clearTimeout(showCommandsTimer);
     };
-  }, [isLoading, setAnimState]);
+  }, [isLoading, setAnimation]);
 
   // If still loading the settings, show a loading screen
   if (isLoading) {
     return (
       <LoadingScreen>
-        <h1>Loading PioSpeed...</h1>
+        <Spinner />
+        <DescriptionText>Loading...</DescriptionText>
       </LoadingScreen>
     );
   }
@@ -358,7 +121,7 @@ const RecoilApp: React.FC = () => {
   const executeCommand = () => {
     if (currentCommand === CommandMap.NONE) return;
     
-    if (!settings.solverPath) {
+    if (!solverPath) {
       setCurrentStep('Error: Please set the PioSOLVER executable path in Settings');
       return;
     }
@@ -397,20 +160,32 @@ const RecoilApp: React.FC = () => {
   };
 
   return (
-    <Background>
-      <AppContainer>
-        <SettingsButtonContainer>
-          <SettingsButton onClick={() => setSettingsModalOpen(true)} />
-        </SettingsButtonContainer>
-        
-        <CenteredHeaderContainer $animate={animState}>
-          <Header />
-          <TaglineWrapper $animate={animState}>
-            <Tagline>Select your command and options</Tagline>
-          </TaglineWrapper>
-        </CenteredHeaderContainer>
-        
-        <MainContent $animate={animState}>
+    <AppContainer>
+      <Background />
+      <SettingsButtonContainer>
+        <SettingsButton onClick={() => setIsSettingsOpen(true)} />
+      </SettingsButtonContainer>
+      <CenteredHeaderContainer $animate={animation}>
+        <Header />
+        <TaglineWrapper $animate={animation}>
+          <Tagline>Poker Game Solver</Tagline>
+        </TaglineWrapper>
+      </CenteredHeaderContainer>
+
+      {isLoading ? (
+        <LoadingScreen>
+          <Spinner />
+          <DescriptionText>Loading...</DescriptionText>
+        </LoadingScreen>
+      ) : error ? (
+        <MainContent $animate={animation}>
+          <ContentSection>
+            <ErrorText>{error}</ErrorText>
+            <Button onClick={() => setIsSettingsOpen(true)}>Open Settings</Button>
+          </ContentSection>
+        </MainContent>
+      ) : (
+        <MainContent $animate={animation}>
           <ContentSection>
             {isRunning ? (
               <ExecutionContainer>
@@ -441,8 +216,8 @@ const RecoilApp: React.FC = () => {
                     <ToggleLabel>Nodelock</ToggleLabel>
                     <ToggleContainer>
                       <ToggleOption 
-                        $active={!isNodelock} 
-                        onClick={() => solveType !== 'getResults' && setIsNodelock(false)}
+                        $active={!nodelock} 
+                        onClick={() => solveType !== 'getResults' && setNodelock(false)}
                         style={{ 
                           opacity: solveType === 'getResults' ? 0.5 : 1,
                           cursor: solveType === 'getResults' ? 'not-allowed' : 'pointer'
@@ -452,8 +227,8 @@ const RecoilApp: React.FC = () => {
                       </ToggleOption>
                       <ToggleOptionDivider>|</ToggleOptionDivider>
                       <ToggleOption 
-                        $active={isNodelock} 
-                        onClick={() => solveType !== 'getResults' && setIsNodelock(true)}
+                        $active={nodelock} 
+                        onClick={() => solveType !== 'getResults' && setNodelock(true)}
                         style={{ 
                           opacity: solveType === 'getResults' ? 0.5 : 1,
                           cursor: solveType === 'getResults' ? 'not-allowed' : 'pointer'
@@ -486,7 +261,7 @@ const RecoilApp: React.FC = () => {
                         onClick={() => {
                           setSolveType('getResults');
                           // Force nodelock off and saveType to full when getResults is selected
-                          setIsNodelock(false);
+                          setNodelock(false);
                           setSaveType('full');
                         }}
                       >
@@ -545,18 +320,23 @@ const RecoilApp: React.FC = () => {
             )}
           </ContentSection>
         </MainContent>
-        
-        {animState === 'commandPalette' && <Footer />}
-        
-        {/* Settings Modal */}
-        <SettingsModal 
-          isOpen={settingsModalOpen} 
-          onClose={() => setSettingsModalOpen(false)}
-          settings={settings}
-          onSaveSettings={saveSettings}
-        />
-      </AppContainer>
-    </Background>
+      )}
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onSaveSettings={async (newSettings: any) => {
+          setIsSettingsOpen(false);
+          if (newSettings.solverPath) {
+            setSolverPath(newSettings.solverPath);
+            window.electron.sendSolverPath(newSettings.solverPath);
+            setError(null);
+          }
+        }}
+      />
+      <Footer />
+    </AppContainer>
   );
 };
 

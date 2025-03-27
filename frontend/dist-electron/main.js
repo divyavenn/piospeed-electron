@@ -1,13 +1,36 @@
 "use strict";
-const require$$1$2 = require("electron");
-const path$6 = require("path");
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => {
+  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+  return value;
+};
+var __accessCheck = (obj, member, msg) => {
+  if (!member.has(obj))
+    throw TypeError("Cannot " + msg);
+};
+var __privateGet = (obj, member, getter) => {
+  __accessCheck(obj, member, "read from private field");
+  return getter ? getter.call(obj) : member.get(obj);
+};
+var __privateAdd = (obj, member, value) => {
+  if (member.has(obj))
+    throw TypeError("Cannot add the same private member more than once");
+  member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+};
+var _handleOnce, _all, _once, _events;
+const require$$1$1 = require("electron");
+const require$$0 = require("path");
+const require$$1 = require("util");
 const fs$3 = require("fs");
-const require$$1$1 = require("util");
 const require$$3$2 = require("crypto");
 const require$$4 = require("assert");
 const require$$5 = require("events");
-const require$$1 = require("os");
+const os$1 = require("os");
 const child_process = require("child_process");
+const net = require("net");
+const tls = require("tls");
+const dgram = require("dgram");
 function _interopNamespaceDefault(e) {
   const n = Object.create(null, { [Symbol.toStringTag]: { value: "Module" } });
   if (e) {
@@ -24,9 +47,7 @@ function _interopNamespaceDefault(e) {
   n.default = e;
   return Object.freeze(n);
 }
-const require$$0__namespace$1 = /* @__PURE__ */ _interopNamespaceDefault(require$$0$1);
-const path__namespace = /* @__PURE__ */ _interopNamespaceDefault(path$6);
-const fs__namespace = /* @__PURE__ */ _interopNamespaceDefault(fs$3);
+const require$$0__namespace = /* @__PURE__ */ _interopNamespaceDefault(require$$0);
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 function getDefaultExportFromCjs(x) {
   return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
@@ -167,12 +188,12 @@ const pLimit$1 = (concurrency) => {
   if (!((Number.isInteger(concurrency) || concurrency === Infinity) && concurrency > 0)) {
     return Promise.reject(new TypeError("Expected `concurrency` to be a number from 1 and up"));
   }
-  const queue = [];
+  const queue2 = [];
   let activeCount = 0;
   const next = () => {
     activeCount--;
-    if (queue.length > 0) {
-      queue.shift()();
+    if (queue2.length > 0) {
+      queue2.shift()();
     }
   };
   const run = (fn, resolve2, ...args) => {
@@ -185,7 +206,7 @@ const pLimit$1 = (concurrency) => {
     if (activeCount < concurrency) {
       run(fn, resolve2, ...args);
     } else {
-      queue.push(run.bind(null, fn, resolve2, ...args));
+      queue2.push(run.bind(null, fn, resolve2, ...args));
     }
   };
   const generator = (fn, ...args) => new Promise((resolve2) => enqueue(fn, resolve2, ...args));
@@ -194,11 +215,11 @@ const pLimit$1 = (concurrency) => {
       get: () => activeCount
     },
     pendingCount: {
-      get: () => queue.length
+      get: () => queue2.length
     },
     clearQueue: {
       value: () => {
-        queue.length = 0;
+        queue2.length = 0;
       }
     }
   });
@@ -227,7 +248,7 @@ var pLocate$1 = (iterable, tester, opts) => {
   return Promise.all(items2.map((el) => checkLimit(finder, el))).then(() => {
   }).catch((err) => err instanceof EndError ? err.value : Promise.reject(err));
 };
-const path$5 = path$6;
+const path$5 = require$$0;
 const pathExists = pathExistsExports;
 const pLocate = pLocate$1;
 locatePath$1.exports = (iterable, options) => {
@@ -247,7 +268,7 @@ locatePath$1.exports.sync = (iterable, options) => {
   }
 };
 var locatePathExports = locatePath$1.exports;
-const path$4 = path$6;
+const path$4 = require$$0;
 const locatePath = locatePathExports;
 findUp$1.exports = (filename, opts = {}) => {
   const startDir = path$4.resolve(opts.cwd || "");
@@ -288,8 +309,8 @@ pkgUp.exports = async ({ cwd } = {}) => findUp("package.json", { cwd });
 pkgUp.exports.sync = ({ cwd } = {}) => findUp.sync("package.json", { cwd });
 var pkgUpExports = pkgUp.exports;
 var envPaths$1 = { exports: {} };
-const path$3 = path$6;
-const os = require$$1;
+const path$3 = require$$0;
+const os = os$1;
 const homedir = os.homedir();
 const tmpdir = os.tmpdir();
 const { env } = process;
@@ -518,7 +539,7 @@ const retryifySync = (fn, isRetriableError) => {
 retryify.retryifySync = retryifySync;
 Object.defineProperty(fs$1, "__esModule", { value: true });
 const fs = fs$3;
-const util_1$S = require$$1$1;
+const util_1$S = require$$1;
 const attemptify_1 = attemptify;
 const fs_handlers_1 = fs_handlers;
 const retryify_1 = retryify;
@@ -573,11 +594,11 @@ Object.defineProperty(scheduler, "__esModule", { value: true });
 const Queues = {};
 const Scheduler = {
   next: (id2) => {
-    const queue = Queues[id2];
-    if (!queue)
+    const queue2 = Queues[id2];
+    if (!queue2)
       return;
-    queue.shift();
-    const job = queue[0];
+    queue2.shift();
+    const job = queue2[0];
     if (job) {
       job(() => Scheduler.next(id2));
     } else {
@@ -586,11 +607,11 @@ const Scheduler = {
   },
   schedule: (id2) => {
     return new Promise((resolve2) => {
-      let queue = Queues[id2];
-      if (!queue)
-        queue = Queues[id2] = [];
-      queue.push(resolve2);
-      if (queue.length > 1)
+      let queue2 = Queues[id2];
+      if (!queue2)
+        queue2 = Queues[id2] = [];
+      queue2.push(resolve2);
+      if (queue2.length > 1)
         return;
       resolve2(() => Scheduler.next(id2));
     });
@@ -599,7 +620,7 @@ const Scheduler = {
 scheduler.default = Scheduler;
 var temp = {};
 Object.defineProperty(temp, "__esModule", { value: true });
-const path$2 = path$6;
+const path$2 = require$$0;
 const consts_1$1 = consts;
 const fs_1$1 = fs$1;
 const Temp = {
@@ -648,7 +669,7 @@ process.on("exit", Temp.purgeSyncAll);
 temp.default = Temp;
 Object.defineProperty(dist$1, "__esModule", { value: true });
 dist$1.writeFileSync = dist$1.writeFile = dist$1.readFileSync = dist$1.readFile = void 0;
-const path$1 = path$6;
+const path$1 = require$$0;
 const consts_1 = consts;
 const fs_1 = fs$1;
 const lang_1 = lang;
@@ -4915,11 +4936,11 @@ uri$3.default = uri$2;
   Ajv.ValidationError = validation_error_12.default;
   Ajv.MissingRefError = ref_error_12.default;
   exports.default = Ajv;
-  function checkOptions(checkOpts, options, msg, log = "error") {
+  function checkOptions(checkOpts, options, msg, log2 = "error") {
     for (const key in checkOpts) {
       const opt = key;
       if (opt in options)
-        this.logger[log](`${msg}: option ${key}. ${checkOpts[opt]}`);
+        this.logger[log2](`${msg}: option ${key}. ${checkOpts[opt]}`);
     }
   }
   function getSchEnv(keyRef) {
@@ -6860,7 +6881,7 @@ const require$$3$1 = {
   properties: properties$3,
   "default": true
 };
-(function(module, exports) {
+(function(module2, exports) {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.MissingRefError = exports.ValidationError = exports.CodeGen = exports.Name = exports.nil = exports.stringify = exports.str = exports._ = exports.KeywordCxt = exports.Ajv = void 0;
   const core_12 = core$5;
@@ -6889,8 +6910,8 @@ const require$$3$1 = {
     }
   }
   exports.Ajv = Ajv;
-  module.exports = exports = Ajv;
-  module.exports.Ajv = Ajv;
+  module2.exports = exports = Ajv;
+  module2.exports.Ajv = Ajv;
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.default = Ajv;
   var validate_12 = validate$1;
@@ -10508,11 +10529,11 @@ uri$1.default = uri;
   Ajv.ValidationError = validation_error_12.default;
   Ajv.MissingRefError = ref_error_12.default;
   exports.default = Ajv;
-  function checkOptions(checkOpts, options, msg, log = "error") {
+  function checkOptions(checkOpts, options, msg, log2 = "error") {
     for (const key in checkOpts) {
       const opt = key;
       if (opt in options)
-        this.logger[log](`${msg}: option ${key}. ${checkOpts[opt]}`);
+        this.logger[log2](`${msg}: option ${key}. ${checkOpts[opt]}`);
     }
   }
   function getSchEnv(keyRef) {
@@ -12453,7 +12474,7 @@ const require$$3 = {
   properties,
   "default": true
 };
-(function(module, exports) {
+(function(module2, exports) {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.MissingRefError = exports.ValidationError = exports.CodeGen = exports.Name = exports.nil = exports.stringify = exports.str = exports._ = exports.KeywordCxt = exports.Ajv = void 0;
   const core_12 = core$2;
@@ -12482,8 +12503,8 @@ const require$$3 = {
     }
   }
   exports.Ajv = Ajv;
-  module.exports = exports = Ajv;
-  module.exports.Ajv = Ajv;
+  module2.exports = exports = Ajv;
+  module2.exports.Ajv = Ajv;
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.default = Ajv;
   var validate_12 = validate;
@@ -12586,7 +12607,7 @@ var ajvExports = ajv.exports;
   };
   exports.default = formatLimitPlugin;
 })(limit);
-(function(module, exports) {
+(function(module2, exports) {
   Object.defineProperty(exports, "__esModule", { value: true });
   const formats_1 = formats;
   const limit_1 = limit;
@@ -12619,7 +12640,7 @@ var ajvExports = ajv.exports;
     for (const f of list)
       ajv2.addFormat(f, fs2[f]);
   }
-  module.exports = exports = formatsPlugin;
+  module2.exports = exports = formatsPlugin;
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.default = formatsPlugin;
 })(dist, dist.exports);
@@ -12737,14 +12758,14 @@ var constants$1 = {
 const debug$1 = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
 };
 var debug_1 = debug$1;
-(function(module, exports) {
+(function(module2, exports) {
   const {
     MAX_SAFE_COMPONENT_LENGTH: MAX_SAFE_COMPONENT_LENGTH2,
     MAX_SAFE_BUILD_LENGTH: MAX_SAFE_BUILD_LENGTH2,
     MAX_LENGTH: MAX_LENGTH2
   } = constants$1;
   const debug2 = debug_1;
-  exports = module.exports = {};
+  exports = module2.exports = {};
   const re2 = exports.re = [];
   const safeRe = exports.safeRe = [];
   const src2 = exports.src = [];
@@ -14360,7 +14381,7 @@ onetime$1.exports.callCount = (function_) => {
   return calledFunctions.get(function_);
 };
 var onetimeExports = onetime$1.exports;
-(function(module, exports) {
+(function(module2, exports) {
   var __classPrivateFieldSet = commonjsGlobal && commonjsGlobal.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
     if (kind === "m")
       throw new TypeError("Private method is not writable");
@@ -14380,9 +14401,9 @@ var onetimeExports = onetime$1.exports;
   var _a, _b;
   var _Conf_validator, _Conf_encryptionKey, _Conf_options, _Conf_defaultValues;
   Object.defineProperty(exports, "__esModule", { value: true });
-  const util_12 = require$$1$1;
+  const util_12 = require$$1;
   const fs2 = fs$3;
-  const path2 = path$6;
+  const path2 = require$$0;
   const crypto = require$$3$2;
   const assert = require$$4;
   const events_1 = require$$5;
@@ -14405,7 +14426,7 @@ var onetimeExports = onetime$1.exports;
   let parentDir = "";
   try {
     delete require.cache[__filename];
-    parentDir = path2.dirname((_b = (_a = module.parent) === null || _a === void 0 ? void 0 : _a.filename) !== null && _b !== void 0 ? _b : ".");
+    parentDir = path2.dirname((_b = (_a = module2.parent) === null || _a === void 0 ? void 0 : _a.filename) !== null && _b !== void 0 ? _b : ".");
   } catch (_c) {
   }
   const checkValueType = (key, value) => {
@@ -14819,12 +14840,12 @@ var onetimeExports = onetime$1.exports;
     }
   }
   exports.default = Conf2;
-  module.exports = Conf2;
-  module.exports.default = Conf2;
+  module2.exports = Conf2;
+  module2.exports.default = Conf2;
 })(source, source.exports);
 var sourceExports = source.exports;
-const path = path$6;
-const { app, ipcMain, ipcRenderer, shell } = require$$1$2;
+const path = require$$0;
+const { app, ipcMain, ipcRenderer, shell } = require$$1$1;
 const Conf = sourceExports;
 let isInitialized = false;
 const initDataListener = () => {
@@ -14885,560 +14906,1507 @@ class ElectronStore extends Conf {
 }
 var electronStore = ElectronStore;
 const Store = /* @__PURE__ */ getDefaultExportFromCjs(electronStore);
-function getPythonExecutable() {
-  switch (process.platform) {
-    case "win32":
-      return "python";
-    case "darwin":
-      return "python3";
-    case "linux":
-      return "python3";
-    default:
-      return "python3";
-  }
-}
-function getEmbeddedPythonPath() {
-  if (require$$1$2.app.isPackaged) {
-    const resourcesPath = process.resourcesPath;
-    if (process.platform === "win32") {
-      const embeddedPath = path__namespace.join(resourcesPath, "python", "python.exe");
-      if (fs__namespace.existsSync(embeddedPath)) {
-        return embeddedPath;
-      }
-    } else if (process.platform === "darwin") {
-      const embeddedPath = path__namespace.join(resourcesPath, "python", "bin", "python3");
-      if (fs__namespace.existsSync(embeddedPath)) {
-        return embeddedPath;
-      }
-    } else if (process.platform === "linux") {
-      const embeddedPath = path__namespace.join(resourcesPath, "python", "bin", "python3");
-      if (fs__namespace.existsSync(embeddedPath)) {
-        return embeddedPath;
-      }
+function setupIpcHandlers(messageQueue2, store2) {
+  require$$1$1.ipcMain.handle("send-to-python", async (_, message) => {
+    try {
+      await messageQueue2.send(message);
+    } catch (error2) {
+      console.error("Failed to send message to Python:", error2);
     }
-  }
-  return null;
-}
-async function checkPythonInstalled() {
-  try {
-    const embeddedPython = getEmbeddedPythonPath();
-    if (embeddedPython) {
-      console.log(`Using embedded Python at: ${embeddedPython}`);
-      return true;
-    }
-    const pythonExecutable = getPythonExecutable();
-    return new Promise((resolve2) => {
-      const pythonProcess2 = child_process.spawn(pythonExecutable, ["-c", "import sys; print(sys.version)"]);
-      let output = "";
-      pythonProcess2.stdout.on("data", (data) => {
-        output += data.toString();
-      });
-      pythonProcess2.on("close", (code2) => {
-        if (code2 === 0) {
-          console.log(`Python is installed: ${output.trim()}`);
-          resolve2(true);
-        } else {
-          console.log("Python is not installed or not in PATH");
-          resolve2(false);
-        }
-      });
-      pythonProcess2.on("error", () => {
-        console.log("Error checking Python installation");
-        resolve2(false);
-      });
+  });
+  require$$1$1.ipcMain.handle("select-file", async (_, options) => {
+    const result = await require$$1$1.dialog.showOpenDialog({
+      properties: ["openFile"],
+      filters: (options == null ? void 0 : options.filters) || []
     });
-  } catch (error2) {
-    console.error("Error checking Python:", error2);
-    return false;
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0];
+    }
+    return null;
+  });
+  require$$1$1.ipcMain.handle("select-folder", async () => {
+    const result = await require$$1$1.dialog.showOpenDialog({
+      properties: ["openDirectory"]
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0];
+    }
+    return null;
+  });
+  require$$1$1.ipcMain.handle("get-solver-path", async () => {
+    return store2.get("solverPath");
+  });
+}
+class Defaults {
+  constructor() {
+    __publicField(this, "appspace", "app.");
+    __publicField(this, "socketRoot", "/tmp/");
+    __publicField(this, "id", os$1.hostname());
+    __publicField(this, "encoding", "utf8");
+    __publicField(this, "rawBuffer", false);
+    __publicField(this, "sync", false);
+    __publicField(this, "unlink", true);
+    __publicField(this, "delimiter", "\f");
+    __publicField(this, "silent", false);
+    __publicField(this, "logDepth", 5);
+    __publicField(this, "logInColor", true);
+    __publicField(this, "logger", console.log.bind(console));
+    __publicField(this, "maxConnections", 100);
+    __publicField(this, "retry", 500);
+    __publicField(this, "maxRetries", Infinity);
+    __publicField(this, "stopRetrying", false);
+    __publicField(this, "IPType", getIPType());
+    __publicField(this, "tls", false);
+    __publicField(this, "networkHost", this.IPType == "IPv6" ? "::1" : "127.0.0.1");
+    __publicField(this, "networkPort", 8e3);
+    __publicField(this, "readableAll", false);
+    __publicField(this, "writableAll", false);
+    __publicField(this, "interface", {
+      localAddress: false,
+      localPort: false,
+      family: false,
+      hints: false,
+      lookup: false
+    });
   }
 }
-async function installPythonDependencies(appPath) {
-  try {
-    const pythonExecutable = getEmbeddedPythonPath() || getPythonExecutable();
-    let requirementsPath = path__namespace.join(appPath, "python", "requirements.txt");
-    if (!fs__namespace.existsSync(requirementsPath)) {
-      const alternateLocations = [
-        path__namespace.join(process.resourcesPath, "python", "requirements.txt"),
-        path__namespace.join(appPath, "resources", "python", "requirements.txt")
-      ];
-      for (const location of alternateLocations) {
-        if (fs__namespace.existsSync(location)) {
-          requirementsPath = location;
-          break;
-        }
+function getIPType() {
+  const networkInterfaces = os$1.networkInterfaces();
+  let IPType = "";
+  if (networkInterfaces && Array.isArray(networkInterfaces) && networkInterfaces.length > 0) {
+    IPType = networkInterfaces[Object.keys(networkInterfaces)[0]][0].family;
+  }
+  return IPType;
+}
+class Parser {
+  constructor(config) {
+    if (!config) {
+      config = new Defaults();
+    }
+    this.delimiter = config.delimiter;
+  }
+  format(message) {
+    if (!message.data && message.data !== false && message.data !== 0) {
+      message.data = {};
+    }
+    if (message.data["_maxListeners"]) {
+      message.data = {};
+    }
+    message = message.JSON + this.delimiter;
+    return message;
+  }
+  parse(data) {
+    let events = data.split(this.delimiter);
+    events.pop();
+    return events;
+  }
+}
+function Message() {
+  Object.defineProperties(
+    this,
+    {
+      data: {
+        enumerable: true,
+        get: getData2,
+        set: setData
+      },
+      type: {
+        enumerable: true,
+        get: getType,
+        set: setType
+      },
+      load: {
+        enumerable: true,
+        writable: false,
+        value: parse2
+      },
+      JSON: {
+        enumerable: true,
+        get: getJSON
       }
     }
-    if (!fs__namespace.existsSync(requirementsPath)) {
-      console.error("requirements.txt not found");
+  );
+  var type2 = "";
+  var data = {};
+  function getType() {
+    return type2;
+  }
+  function getData2() {
+    return data;
+  }
+  function getJSON() {
+    return JSON.stringify(
+      {
+        type: type2,
+        data
+      }
+    );
+  }
+  function setType(value) {
+    type2 = value;
+  }
+  function setData(value) {
+    data = value;
+  }
+  function parse2(message) {
+    try {
+      var message = JSON.parse(message);
+      type2 = message.type;
+      data = message.data;
+    } catch (err) {
+      var badMessage = message;
+      type2 = "error", data = {
+        message: "Invalid JSON response format",
+        err,
+        response: badMessage
+      };
+    }
+  }
+}
+var Message_1 = Message;
+const Message$1 = /* @__PURE__ */ getDefaultExportFromCjs(Message_1);
+function Queue(asStack) {
+  Object.defineProperties(
+    this,
+    {
+      add: {
+        enumerable: true,
+        writable: false,
+        value: addToQueue
+      },
+      next: {
+        enumerable: true,
+        writable: false,
+        value: run
+      },
+      clear: {
+        enumerable: true,
+        writable: false,
+        value: clearQueue
+      },
+      contents: {
+        enumerable: false,
+        get: getQueue,
+        set: setQueue
+      },
+      autoRun: {
+        enumerable: true,
+        writable: true,
+        value: true
+      },
+      stop: {
+        enumerable: true,
+        writable: true,
+        value: false
+      }
+    }
+  );
+  var queue2 = [];
+  var running = false;
+  function clearQueue() {
+    queue2 = [];
+    return queue2;
+  }
+  function getQueue() {
+    return queue2;
+  }
+  function setQueue(val) {
+    queue2 = val;
+    return queue2;
+  }
+  function addToQueue() {
+    for (var i in arguments) {
+      queue2.push(arguments[i]);
+    }
+    if (!running && !this.stop && this.autoRun) {
+      this.next();
+    }
+  }
+  function run() {
+    running = true;
+    if (queue2.length < 1 || this.stop) {
+      running = false;
+      return;
+    }
+    queue2.shift().bind(this)();
+  }
+}
+var queue = Queue;
+const Queue$1 = /* @__PURE__ */ getDefaultExportFromCjs(queue);
+class Fake {
+  //fake class as fallback
+}
+class FakeCore {
+  //fake class as fallback
+}
+class Is {
+  constructor(strict = true) {
+    this.strict = strict;
+  }
+  //core
+  throw(valueType, expectedType) {
+    let err = new TypeError();
+    err.message = `expected type of ${valueType} to be ${expectedType}`;
+    if (!this.strict) {
       return false;
     }
-    return new Promise((resolve2) => {
-      console.log(`Installing Python dependencies from ${requirementsPath}`);
-      const pipArgs = ["-m", "pip", "install", "-r", requirementsPath];
-      const pipProcess = typeof pythonExecutable === "string" ? child_process.spawn(pythonExecutable, pipArgs) : child_process.spawn(pythonExecutable, pipArgs);
-      pipProcess.stdout.on("data", (data) => {
-        console.log(`pip stdout: ${data.toString()}`);
-      });
-      pipProcess.stderr.on("data", (data) => {
-        console.error(`pip stderr: ${data.toString()}`);
-      });
-      pipProcess.on("close", (code2) => {
-        if (code2 === 0) {
-          console.log("Python dependencies installed successfully");
-          resolve2(true);
-        } else {
-          console.error(`pip install failed with code ${code2}`);
-          resolve2(false);
+    throw err;
+  }
+  typeCheck(value, type2) {
+    if (typeof value === type2) {
+      return true;
+    }
+    return this.throw(typeof value, type2);
+  }
+  instanceCheck(value = new Fake(), constructor = FakeCore) {
+    if (value instanceof constructor) {
+      return true;
+    }
+    return this.throw(typeof value, constructor.name);
+  }
+  symbolStringCheck(value, type2) {
+    if (Object.prototype.toString.call(value) == `[object ${type2}]`) {
+      return true;
+    }
+    return this.throw(Object.prototype.toString.call(value), `[object ${type2}]`);
+  }
+  compare(value, targetValue, typeName) {
+    if (value == targetValue) {
+      return true;
+    }
+    if (!this.strict) {
+      return false;
+    }
+    throw new Error(`expected ${value} == ${targetValue} but it is not.`);
+  }
+  defined(value) {
+    const weakIs = new Is(false);
+    if (weakIs.undefined(value)) {
+      return this.throw("undefined", "defined");
+    }
+    return true;
+  }
+  any(value) {
+    return this.defined(value);
+  }
+  exists(value) {
+    return this.defined(value);
+  }
+  union(value, typesString) {
+    const types2 = typesString.split("|");
+    const weakIs = new Is(false);
+    let pass = false;
+    let type2 = "undefined";
+    for (type2 of types2) {
+      try {
+        if (weakIs[type2](value)) {
+          pass = true;
+          break;
         }
-      });
-      pipProcess.on("error", (err) => {
-        console.error("Error installing Python dependencies:", err);
-        resolve2(false);
-      });
+      } catch (err) {
+        return this.throw(type2, "a method available on strong-type");
+      }
+    }
+    if (pass) {
+      return this[type2](value);
+    }
+    return this.throw(typeof value, types2.join("|"));
+  }
+  //unique checks
+  finite(value) {
+    if (isFinite(value)) {
+      return true;
+    }
+    return this.throw(typeof value, "finite");
+  }
+  NaN(value) {
+    if (!this.number(value)) {
+      return this.number(value);
+    }
+    if (isNaN(value)) {
+      return true;
+    }
+    return this.throw(typeof value, "NaN");
+  }
+  null(value) {
+    return this.compare(value, null, "null");
+  }
+  //common sugar
+  array(value) {
+    return this.instanceCheck(value, Array);
+  }
+  boolean(value) {
+    return this.typeCheck(value, "boolean");
+  }
+  bigInt(value) {
+    return this.typeCheck(value, "bigint");
+  }
+  date(value) {
+    return this.instanceCheck(value, Date);
+  }
+  generator(value) {
+    return this.symbolStringCheck(value, "Generator");
+  }
+  asyncGenerator(value) {
+    return this.symbolStringCheck(value, "AsyncGenerator");
+  }
+  globalThis(value) {
+    return this.compare(value, globalThis, "explicitly globalThis, not window, global nor self");
+  }
+  infinity(value) {
+    return this.compare(value, Infinity, "Infinity");
+  }
+  map(value) {
+    return this.instanceCheck(value, Map);
+  }
+  weakMap(value) {
+    return this.instanceCheck(value, WeakMap);
+  }
+  number(value) {
+    return this.typeCheck(value, "number");
+  }
+  object(value) {
+    return this.typeCheck(value, "object");
+  }
+  promise(value) {
+    return this.instanceCheck(value, Promise);
+  }
+  regExp(value) {
+    return this.instanceCheck(value, RegExp);
+  }
+  undefined(value) {
+    return this.typeCheck(value, "undefined");
+  }
+  set(value) {
+    return this.instanceCheck(value, Set);
+  }
+  weakSet(value) {
+    return this.instanceCheck(value, WeakSet);
+  }
+  string(value) {
+    return this.typeCheck(value, "string");
+  }
+  symbol(value) {
+    return this.typeCheck(value, "symbol");
+  }
+  //functions
+  function(value) {
+    return this.typeCheck(value, "function");
+  }
+  asyncFunction(value) {
+    return this.symbolStringCheck(value, "AsyncFunction");
+  }
+  generatorFunction(value) {
+    return this.symbolStringCheck(value, "GeneratorFunction");
+  }
+  asyncGeneratorFunction(value) {
+    return this.symbolStringCheck(value, "AsyncGeneratorFunction");
+  }
+  //error sugar
+  error(value) {
+    return this.instanceCheck(value, Error);
+  }
+  evalError(value) {
+    return this.instanceCheck(value, EvalError);
+  }
+  rangeError(value) {
+    return this.instanceCheck(value, RangeError);
+  }
+  referenceError(value) {
+    return this.instanceCheck(value, ReferenceError);
+  }
+  syntaxError(value) {
+    return this.instanceCheck(value, SyntaxError);
+  }
+  typeError(value) {
+    return this.instanceCheck(value, TypeError);
+  }
+  URIError(value) {
+    return this.instanceCheck(value, URIError);
+  }
+  //typed array sugar
+  bigInt64Array(value) {
+    return this.instanceCheck(value, BigInt64Array);
+  }
+  bigUint64Array(value) {
+    return this.instanceCheck(value, BigUint64Array);
+  }
+  float32Array(value) {
+    return this.instanceCheck(value, Float32Array);
+  }
+  float64Array(value) {
+    return this.instanceCheck(value, Float64Array);
+  }
+  int8Array(value) {
+    return this.instanceCheck(value, Int8Array);
+  }
+  int16Array(value) {
+    return this.instanceCheck(value, Int16Array);
+  }
+  int32Array(value) {
+    return this.instanceCheck(value, Int32Array);
+  }
+  uint8Array(value) {
+    return this.instanceCheck(value, Uint8Array);
+  }
+  uint8ClampedArray(value) {
+    return this.instanceCheck(value, Uint8ClampedArray);
+  }
+  uint16Array(value) {
+    return this.instanceCheck(value, Uint16Array);
+  }
+  uint32Array(value) {
+    return this.instanceCheck(value, Uint32Array);
+  }
+  //buffers
+  arrayBuffer(value) {
+    return this.instanceCheck(value, ArrayBuffer);
+  }
+  dataView(value) {
+    return this.instanceCheck(value, DataView);
+  }
+  sharedArrayBuffer(value) {
+    return this.instanceCheck(value, function() {
+      try {
+        return SharedArrayBuffer;
+      } catch {
+        return Fake;
+      }
+    }());
+  }
+  //Intl (browser internationalization)
+  intlDateTimeFormat(value) {
+    return this.instanceCheck(value, Intl.DateTimeFormat);
+  }
+  intlCollator(value) {
+    return this.instanceCheck(value, Intl.Collator);
+  }
+  intlDisplayNames(value) {
+    return this.instanceCheck(value, Intl.DisplayNames);
+  }
+  intlListFormat(value) {
+    return this.instanceCheck(value, Intl.ListFormat);
+  }
+  intlLocale(value) {
+    return this.instanceCheck(value, Intl.Locale);
+  }
+  intlNumberFormat(value) {
+    return this.instanceCheck(value, Intl.NumberFormat);
+  }
+  intlPluralRules(value) {
+    return this.instanceCheck(value, Intl.PluralRules);
+  }
+  intlRelativeTimeFormat(value) {
+    return this.instanceCheck(value, Intl.RelativeTimeFormat);
+  }
+  intlRelativeTimeFormat(value) {
+    return this.instanceCheck(value, Intl.RelativeTimeFormat);
+  }
+  //garbage collection
+  finalizationRegistry(value) {
+    return this.instanceCheck(value, FinalizationRegistry);
+  }
+  weakRef(value) {
+    return this.instanceCheck(value, WeakRef);
+  }
+}
+const is = new Is();
+class EventPubSub {
+  constructor() {
+    __privateAdd(this, _handleOnce, (type2, handlers, ...args) => {
+      is.string(type2);
+      is.array(handlers);
+      const deleteOnceHandled = [];
+      for (let handler of handlers) {
+        handler(...args);
+        if (handler[__privateGet(this, _once)]) {
+          deleteOnceHandled.push(handler);
+        }
+      }
+      for (let handler of deleteOnceHandled) {
+        this.off(type2, handler);
+      }
     });
-  } catch (error2) {
-    console.error("Error installing Python dependencies:", error2);
-    return false;
+    __privateAdd(this, _all, Symbol.for("event-pubsub-all"));
+    __privateAdd(this, _once, Symbol.for("event-pubsub-once"));
+    __privateAdd(this, _events, {});
+  }
+  on(type2, handler, once = false) {
+    is.string(type2);
+    is.function(handler);
+    is.boolean(once);
+    if (type2 == "*") {
+      type2 = __privateGet(this, _all);
+    }
+    if (!__privateGet(this, _events)[type2]) {
+      __privateGet(this, _events)[type2] = [];
+    }
+    handler[__privateGet(this, _once)] = once;
+    __privateGet(this, _events)[type2].push(handler);
+    return this;
+  }
+  once(type2, handler) {
+    return this.on(type2, handler, true);
+  }
+  off(type2 = "*", handler = "*") {
+    is.string(type2);
+    if (type2 == __privateGet(this, _all).toString() || type2 == "*") {
+      type2 = __privateGet(this, _all);
+    }
+    if (!__privateGet(this, _events)[type2]) {
+      return this;
+    }
+    if (handler == "*") {
+      delete __privateGet(this, _events)[type2];
+      return this;
+    }
+    is.function(handler);
+    const handlers = __privateGet(this, _events)[type2];
+    while (handlers.includes(handler)) {
+      handlers.splice(
+        handlers.indexOf(handler),
+        1
+      );
+    }
+    if (handlers.length < 1) {
+      delete __privateGet(this, _events)[type2];
+    }
+    return this;
+  }
+  emit(type2, ...args) {
+    is.string(type2);
+    const globalHandlers = __privateGet(this, _events)[__privateGet(this, _all)] || [];
+    __privateGet(this, _handleOnce).call(this, __privateGet(this, _all).toString(), globalHandlers, type2, ...args);
+    if (!__privateGet(this, _events)[type2]) {
+      return this;
+    }
+    const handlers = __privateGet(this, _events)[type2];
+    __privateGet(this, _handleOnce).call(this, type2, handlers, ...args);
+    return this;
+  }
+  reset() {
+    this.off(__privateGet(this, _all).toString());
+    for (let type2 in __privateGet(this, _events)) {
+      this.off(type2);
+    }
+    return this;
+  }
+  get list() {
+    return Object.assign({}, __privateGet(this, _events));
+  }
+}
+_handleOnce = new WeakMap();
+_all = new WeakMap();
+_once = new WeakMap();
+_events = new WeakMap();
+let eventParser$1 = new Parser();
+class Client extends EventPubSub {
+  constructor(config, log2) {
+    super();
+    __publicField(this, "Client", Client);
+    __publicField(this, "queue", new Queue$1());
+    __publicField(this, "socket", false);
+    __publicField(this, "connect", connect$1);
+    __publicField(this, "emit", emit$1);
+    __publicField(this, "retriesRemaining", 0);
+    __publicField(this, "explicitlyDisconnected", false);
+    this.config = config;
+    this.log = log2;
+    this.publish = super.emit;
+    config.maxRetries ? this.retriesRemaining = config.maxRetries : 0;
+    eventParser$1 = new Parser(this.config);
+  }
+}
+function emit$1(type2, data) {
+  this.log("dispatching event to ", this.id, this.path, " : ", type2, ",", data);
+  let message = new Message$1();
+  message.type = type2;
+  message.data = data;
+  if (this.config.rawBuffer) {
+    message = Buffer.from(type2, this.config.encoding);
+  } else {
+    message = eventParser$1.format(message);
+  }
+  if (!this.config.sync) {
+    this.socket.write(message);
+    return;
+  }
+  this.queue.add(
+    syncEmit.bind(this, message)
+  );
+}
+function syncEmit(message) {
+  this.log("dispatching event to ", this.id, this.path, " : ", message);
+  this.socket.write(message);
+}
+function connect$1() {
+  let client = this;
+  client.log("requested connection to ", client.id, client.path);
+  if (!this.path) {
+    client.log("\n\n######\nerror: ", client.id, " client has not specified socket path it wishes to connect to.");
+    return;
+  }
+  const options = {};
+  if (!client.port) {
+    client.log("Connecting client on Unix Socket :", client.path);
+    options.path = client.path;
+    if (process.platform === "win32" && !client.path.startsWith("\\\\.\\pipe\\")) {
+      options.path = options.path.replace(/^\//, "");
+      options.path = options.path.replace(/\//g, "-");
+      options.path = `\\\\.\\pipe\\${options.path}`;
+    }
+    client.socket = net.connect(options);
+  } else {
+    options.host = client.path;
+    options.port = client.port;
+    if (client.config.interface.localAddress) {
+      options.localAddress = client.config.interface.localAddress;
+    }
+    if (client.config.interface.localPort) {
+      options.localPort = client.config.interface.localPort;
+    }
+    if (client.config.interface.family) {
+      options.family = client.config.interface.family;
+    }
+    if (client.config.interface.hints) {
+      options.hints = client.config.interface.hints;
+    }
+    if (client.config.interface.lookup) {
+      options.lookup = client.config.interface.lookup;
+    }
+    if (!client.config.tls) {
+      client.log("Connecting client via TCP to", options);
+      client.socket = net.connect(options);
+    } else {
+      client.log("Connecting client via TLS to", client.path, client.port, client.config.tls);
+      if (client.config.tls.private) {
+        client.config.tls.key = fs$3.readFileSync(client.config.tls.private);
+      }
+      if (client.config.tls.public) {
+        client.config.tls.cert = fs$3.readFileSync(client.config.tls.public);
+      }
+      if (client.config.tls.trustedConnections) {
+        if (typeof client.config.tls.trustedConnections === "string") {
+          client.config.tls.trustedConnections = [client.config.tls.trustedConnections];
+        }
+        client.config.tls.ca = [];
+        for (let i = 0; i < client.config.tls.trustedConnections.length; i++) {
+          client.config.tls.ca.push(
+            fs$3.readFileSync(client.config.tls.trustedConnections[i])
+          );
+        }
+      }
+      Object.assign(client.config.tls, options);
+      client.socket = tls.connect(
+        client.config.tls
+      );
+    }
+  }
+  client.socket.setEncoding(this.config.encoding);
+  client.socket.on(
+    "error",
+    function(err) {
+      client.log("\n\n######\nerror: ", err);
+      client.publish("error", err);
+    }
+  );
+  client.socket.on(
+    "connect",
+    function connectionMade() {
+      client.publish("connect");
+      client.retriesRemaining = client.config.maxRetries;
+      client.log("retrying reset");
+    }
+  );
+  client.socket.on(
+    "close",
+    function connectionClosed() {
+      client.log(
+        "connection closed",
+        client.id,
+        client.path,
+        client.retriesRemaining,
+        "tries remaining of",
+        client.config.maxRetries
+      );
+      if (client.config.stopRetrying || client.retriesRemaining < 1 || client.explicitlyDisconnected) {
+        client.publish("disconnect");
+        client.log(
+          client.config.id,
+          "exceeded connection rety amount of",
+          " or stopRetrying flag set."
+        );
+        client.socket.destroy();
+        client.publish("destroy");
+        client = void 0;
+        return;
+      }
+      setTimeout(
+        (function retryTimeout() {
+          if (client.explicitlyDisconnected) {
+            return;
+          }
+          client.retriesRemaining--;
+          client.connect();
+        }).bind(null, client),
+        client.config.retry
+      );
+      client.publish("disconnect");
+    }
+  );
+  client.socket.on(
+    "data",
+    function(data) {
+      client.log("## received events ##");
+      if (client.config.rawBuffer) {
+        client.publish(
+          "data",
+          Buffer.from(data, client.config.encoding)
+        );
+        if (!client.config.sync) {
+          return;
+        }
+        client.queue.next();
+        return;
+      }
+      if (!this.ipcBuffer) {
+        this.ipcBuffer = "";
+      }
+      data = this.ipcBuffer += data;
+      if (data.slice(-1) != eventParser$1.delimiter || data.indexOf(eventParser$1.delimiter) == -1) {
+        client.log("Messages are large, You may want to consider smaller messages.");
+        return;
+      }
+      this.ipcBuffer = "";
+      const events = eventParser$1.parse(data);
+      const eCount = events.length;
+      for (let i = 0; i < eCount; i++) {
+        let message = new Message$1();
+        message.load(events[i]);
+        client.log("detected event", message.type, message.data);
+        client.publish(
+          message.type,
+          message.data
+        );
+      }
+      if (!client.config.sync) {
+        return;
+      }
+      client.queue.next();
+    }
+  );
+}
+let eventParser = new Parser();
+class Server extends EventPubSub {
+  constructor(path2, config, log2, port) {
+    super();
+    __publicField(this, "udp4", false);
+    __publicField(this, "udp6", false);
+    __publicField(this, "server", false);
+    __publicField(this, "sockets", []);
+    __publicField(this, "emit", emit);
+    __publicField(this, "broadcast", broadcast);
+    this.config = config;
+    this.path = path2;
+    this.port = port;
+    this.log = log2;
+    this.publish = super.emit;
+    eventParser = new Parser(this.config);
+    this.on(
+      "close",
+      serverClosed.bind(this)
+    );
+  }
+  onStart(socket) {
+    this.publish(
+      "start",
+      socket
+    );
+  }
+  stop() {
+    this.server.close();
+  }
+  start() {
+    if (!this.path) {
+      this.log("Socket Server Path not specified, refusing to start");
+      return;
+    }
+    if (this.config.unlink) {
+      fs$3.unlink(
+        this.path,
+        startServer.bind(this)
+      );
+    } else {
+      startServer.bind(this)();
+    }
+  }
+}
+function emit(socket, type2, data) {
+  this.log("dispatching event to socket", " : ", type2, data);
+  let message = new Message$1();
+  message.type = type2;
+  message.data = data;
+  if (this.config.rawBuffer) {
+    this.log(this.config.encoding);
+    message = Buffer.from(type2, this.config.encoding);
+  } else {
+    message = eventParser.format(message);
+  }
+  if (this.udp4 || this.udp6) {
+    if (!socket.address || !socket.port) {
+      this.log("Attempting to emit to a single UDP socket without supplying socket address or port. Redispatching event as broadcast to all connected sockets");
+      this.broadcast(type2, data);
+      return;
+    }
+    this.server.write(
+      message,
+      socket
+    );
+    return;
+  }
+  socket.write(message);
+}
+function broadcast(type2, data) {
+  this.log("broadcasting event to all known sockets listening to ", this.path, " : ", this.port ? this.port : "", type2, data);
+  let message = new Message$1();
+  message.type = type2;
+  message.data = data;
+  if (this.config.rawBuffer) {
+    message = Buffer.from(type2, this.config.encoding);
+  } else {
+    message = eventParser.format(message);
+  }
+  if (this.udp4 || this.udp6) {
+    for (let i = 1, count = this.sockets.length; i < count; i++) {
+      this.server.write(message, this.sockets[i]);
+    }
+  } else {
+    for (let i = 0, count = this.sockets.length; i < count; i++) {
+      this.sockets[i].write(message);
+    }
+  }
+}
+function serverClosed() {
+  for (let i = 0, count = this.sockets.length; i < count; i++) {
+    let socket = this.sockets[i];
+    let destroyedSocketId = false;
+    if (socket) {
+      if (socket.readable) {
+        continue;
+      }
+    }
+    if (socket.id) {
+      destroyedSocketId = socket.id;
+    }
+    this.log("socket disconnected", destroyedSocketId.toString());
+    if (socket && socket.destroy) {
+      socket.destroy();
+    }
+    this.sockets.splice(i, 1);
+    this.publish("socket.disconnected", socket, destroyedSocketId);
+    return;
+  }
+}
+function gotData(socket, data, UDPSocket) {
+  let sock = this.udp4 || this.udp6 ? UDPSocket : socket;
+  if (this.config.rawBuffer) {
+    data = Buffer.from(data, this.config.encoding);
+    this.publish(
+      "data",
+      data,
+      sock
+    );
+    return;
+  }
+  if (!sock.ipcBuffer) {
+    sock.ipcBuffer = "";
+  }
+  data = sock.ipcBuffer += data;
+  if (data.slice(-1) != eventParser.delimiter || data.indexOf(eventParser.delimiter) == -1) {
+    this.log("Messages are large, You may want to consider smaller messages.");
+    return;
+  }
+  sock.ipcBuffer = "";
+  data = eventParser.parse(data);
+  while (data.length > 0) {
+    let message = new Message$1();
+    message.load(data.shift());
+    if (message.data && message.data.id) {
+      sock.id = message.data.id;
+    }
+    this.log("received event of : ", message.type, message.data);
+    this.publish(
+      message.type,
+      message.data,
+      sock
+    );
+  }
+}
+function socketClosed(socket) {
+  this.publish(
+    "close",
+    socket
+  );
+}
+function serverCreated(socket) {
+  this.sockets.push(socket);
+  if (socket.setEncoding) {
+    socket.setEncoding(this.config.encoding);
+  }
+  this.log("## socket connection to server detected ##");
+  socket.on(
+    "close",
+    socketClosed.bind(this)
+  );
+  socket.on(
+    "error",
+    (function(err) {
+      this.log("server socket error", err);
+      this.publish("error", err);
+    }).bind(this)
+  );
+  socket.on(
+    "data",
+    gotData.bind(this, socket)
+  );
+  socket.on(
+    "message",
+    (function(msg, rinfo) {
+      if (!rinfo) {
+        return;
+      }
+      this.log("Received UDP message from ", rinfo.address, rinfo.port);
+      let data;
+      if (this.config.rawSocket) {
+        data = Buffer.from(msg, this.config.encoding);
+      } else {
+        data = msg.toString();
+      }
+      socket.emit("data", data, rinfo);
+    }).bind(this)
+  );
+  this.publish(
+    "connect",
+    socket
+  );
+  if (this.config.rawBuffer) {
+    return;
+  }
+}
+function startServer() {
+  this.log(
+    "starting server on ",
+    this.path,
+    this.port ? `:${this.port}` : ""
+  );
+  if (!this.udp4 && !this.udp6) {
+    this.log("starting TLS server", this.config.tls);
+    if (!this.config.tls) {
+      this.server = net.createServer(
+        serverCreated.bind(this)
+      );
+    } else {
+      startTLSServer.bind(this)();
+    }
+  } else {
+    this.server = dgram.createSocket(
+      this.udp4 ? "udp4" : "udp6"
+    );
+    this.server.write = UDPWrite.bind(this);
+    this.server.on(
+      "listening",
+      (function UDPServerStarted() {
+        serverCreated.bind(this)(this.server);
+      }).bind(this)
+    );
+  }
+  this.server.on(
+    "error",
+    (function(err) {
+      this.log("server error", err);
+      this.publish(
+        "error",
+        err
+      );
+    }).bind(this)
+  );
+  this.server.maxConnections = this.config.maxConnections;
+  if (!this.port) {
+    this.log("starting server as", "Unix || Windows Socket");
+    if (process.platform === "win32") {
+      this.path = this.path.replace(/^\//, "");
+      this.path = this.path.replace(/\//g, "-");
+      this.path = `\\\\.\\pipe\\${this.path}`;
+    }
+    this.server.listen({
+      path: this.path,
+      readableAll: this.config.readableAll,
+      writableAll: this.config.writableAll
+    }, this.onStart.bind(this));
+    return;
+  }
+  if (!this.udp4 && !this.udp6) {
+    this.log("starting server as", this.config.tls ? "TLS" : "TCP");
+    this.server.listen(
+      this.port,
+      this.path,
+      this.onStart.bind(this)
+    );
+    return;
+  }
+  this.log("starting server as", this.udp4 ? "udp4" : "udp6");
+  this.server.bind(
+    this.port,
+    this.path
+  );
+  this.onStart(
+    {
+      address: this.path,
+      port: this.port
+    }
+  );
+}
+function startTLSServer() {
+  this.log("starting TLS server", this.config.tls);
+  if (this.config.tls.private) {
+    this.config.tls.key = fs$3.readFileSync(this.config.tls.private);
+  } else {
+    this.config.tls.key = fs$3.readFileSync(`${__dirname}/../local-node-ipc-certs/private/server.key`);
+  }
+  if (this.config.tls.public) {
+    this.config.tls.cert = fs$3.readFileSync(this.config.tls.public);
+  } else {
+    this.config.tls.cert = fs$3.readFileSync(`${__dirname}/../local-node-ipc-certs/server.pub`);
+  }
+  if (this.config.tls.dhparam) {
+    this.config.tls.dhparam = fs$3.readFileSync(this.config.tls.dhparam);
+  }
+  if (this.config.tls.trustedConnections) {
+    if (typeof this.config.tls.trustedConnections === "string") {
+      this.config.tls.trustedConnections = [this.config.tls.trustedConnections];
+    }
+    this.config.tls.ca = [];
+    for (let i = 0; i < this.config.tls.trustedConnections.length; i++) {
+      this.config.tls.ca.push(
+        fs$3.readFileSync(this.config.tls.trustedConnections[i])
+      );
+    }
+  }
+  this.server = tls.createServer(
+    this.config.tls,
+    serverCreated.bind(this)
+  );
+}
+function UDPWrite(message, socket) {
+  let data = Buffer.from(message, this.config.encoding);
+  this.server.send(
+    data,
+    0,
+    data.length,
+    socket.port,
+    socket.address,
+    function(err, bytes) {
+      if (err) {
+        this.log("error writing data to socket", err);
+        this.publish(
+          "error",
+          function(err2) {
+            this.publish("error", err2);
+          }
+        );
+      }
+    }
+  );
+}
+class IPC {
+  constructor() {
+    //public members
+    __publicField(this, "config", new Defaults());
+    __publicField(this, "of", {});
+    __publicField(this, "server", false);
+  }
+  //protected methods
+  get connectTo() {
+    return connect;
+  }
+  get connectToNet() {
+    return connectNet;
+  }
+  get disconnect() {
+    return disconnect;
+  }
+  get serve() {
+    return serve;
+  }
+  get serveNet() {
+    return serveNet;
+  }
+  get log() {
+    return log;
+  }
+  set connectTo(value) {
+    return connect;
+  }
+  set connectToNet(value) {
+    return connectNet;
+  }
+  set disconnect(value) {
+    return disconnect;
+  }
+  set serve(value) {
+    return serve;
+  }
+  set serveNet(value) {
+    return serveNet;
+  }
+  set log(value) {
+    return log;
+  }
+}
+function log(...args) {
+  if (this.config.silent) {
+    return;
+  }
+  for (let i = 0, count = args.length; i < count; i++) {
+    if (typeof args[i] != "object") {
+      continue;
+    }
+    args[i] = require$$1.inspect(
+      args[i],
+      {
+        depth: this.config.logDepth,
+        colors: this.config.logInColor
+      }
+    );
+  }
+  this.config.logger(
+    args.join(" ")
+  );
+}
+function disconnect(id2) {
+  if (!this.of[id2]) {
+    return;
+  }
+  this.of[id2].explicitlyDisconnected = true;
+  this.of[id2].off("*", "*");
+  if (this.of[id2].socket) {
+    if (this.of[id2].socket.destroy) {
+      this.of[id2].socket.destroy();
+    }
+  }
+  delete this.of[id2];
+}
+function serve(path2, callback) {
+  if (typeof path2 == "function") {
+    callback = path2;
+    path2 = false;
+  }
+  if (!path2) {
+    this.log(
+      "Server path not specified, so defaulting to",
+      "ipc.config.socketRoot + ipc.config.appspace + ipc.config.id",
+      this.config.socketRoot + this.config.appspace + this.config.id
+    );
+    path2 = this.config.socketRoot + this.config.appspace + this.config.id;
+  }
+  if (!callback) {
+    callback = emptyCallback;
+  }
+  this.server = new Server(
+    path2,
+    this.config,
+    log
+  );
+  this.server.on(
+    "start",
+    callback
+  );
+}
+function emptyCallback() {
+}
+function serveNet(host, port, UDPType2, callback) {
+  if (typeof host == "number") {
+    callback = UDPType2;
+    UDPType2 = port;
+    port = host;
+    host = false;
+  }
+  if (typeof host == "function") {
+    callback = host;
+    UDPType2 = false;
+    host = false;
+    port = false;
+  }
+  if (!host) {
+    this.log(
+      "Server host not specified, so defaulting to",
+      "ipc.config.networkHost",
+      this.config.networkHost
+    );
+    host = this.config.networkHost;
+  }
+  if (host.toLowerCase() == "udp4" || host.toLowerCase() == "udp6") {
+    callback = port;
+    UDPType2 = host.toLowerCase();
+    port = false;
+    host = this.config.networkHost;
+  }
+  if (typeof port == "string") {
+    callback = UDPType2;
+    UDPType2 = port;
+    port = false;
+  }
+  if (typeof port == "function") {
+    callback = port;
+    UDPType2 = false;
+    port = false;
+  }
+  if (!port) {
+    this.log(
+      "Server port not specified, so defaulting to",
+      "ipc.config.networkPort",
+      this.config.networkPort
+    );
+    port = this.config.networkPort;
+  }
+  if (typeof UDPType2 == "function") {
+    callback = UDPType2;
+    UDPType2 = false;
+  }
+  if (!callback) {
+    callback = emptyCallback;
+  }
+  this.server = new Server(
+    host,
+    this.config,
+    log,
+    port
+  );
+  if (UDPType2) {
+    this.server[UDPType2] = true;
+    if (UDPType2 === "udp4" && host === "::1") {
+      this.server.path = "127.0.0.1";
+    }
+  }
+  this.server.on(
+    "start",
+    callback
+  );
+}
+function connect(id2, path2, callback) {
+  if (typeof path2 == "function") {
+    callback = path2;
+    path2 = false;
+  }
+  if (!callback) {
+    callback = emptyCallback;
+  }
+  if (!id2) {
+    this.log(
+      "Service id required",
+      "Requested service connection without specifying service id. Aborting connection attempt"
+    );
+    return;
+  }
+  if (!path2) {
+    this.log(
+      "Service path not specified, so defaulting to",
+      "ipc.config.socketRoot + ipc.config.appspace + id",
+      (this.config.socketRoot + this.config.appspace + id2).data
+    );
+    path2 = this.config.socketRoot + this.config.appspace + id2;
+  }
+  if (this.of[id2]) {
+    if (!this.of[id2].socket.destroyed) {
+      this.log(
+        "Already Connected to",
+        id2,
+        "- So executing success without connection"
+      );
+      callback();
+      return;
+    }
+    this.of[id2].socket.destroy();
+  }
+  this.of[id2] = new Client(this.config, this.log);
+  this.of[id2].id = id2;
+  this.of[id2].socket ? this.of[id2].socket.id = id2 : null;
+  this.of[id2].path = path2;
+  this.of[id2].connect();
+  callback(this);
+}
+function connectNet(id2, host, port, callback) {
+  if (!id2) {
+    this.log(
+      "Service id required",
+      "Requested service connection without specifying service id. Aborting connection attempt"
+    );
+    return;
+  }
+  if (typeof host == "number") {
+    callback = port;
+    port = host;
+    host = false;
+  }
+  if (typeof host == "function") {
+    callback = host;
+    host = false;
+    port = false;
+  }
+  if (!host) {
+    this.log(
+      "Server host not specified, so defaulting to",
+      "ipc.config.networkHost",
+      this.config.networkHost
+    );
+    host = this.config.networkHost;
+  }
+  if (typeof port == "function") {
+    callback = port;
+    port = false;
+  }
+  if (!port) {
+    this.log(
+      "Server port not specified, so defaulting to",
+      "ipc.config.networkPort",
+      this.config.networkPort
+    );
+    port = this.config.networkPort;
+  }
+  if (typeof callback == "string") {
+    UDPType = callback;
+    callback = false;
+  }
+  if (!callback) {
+    callback = emptyCallback;
+  }
+  if (this.of[id2]) {
+    if (!this.of[id2].socket.destroyed) {
+      this.log(
+        "Already Connected to",
+        id2,
+        "- So executing success without connection"
+      );
+      callback();
+      return;
+    }
+    this.of[id2].socket.destroy();
+  }
+  this.of[id2] = new Client(this.config, this.log);
+  this.of[id2].id = id2;
+  this.of[id2].socket ? this.of[id2].socket.id = id2 : null;
+  this.of[id2].path = host;
+  this.of[id2].port = port;
+  this.of[id2].connect();
+  callback(this);
+}
+class IPCModule extends IPC {
+  constructor() {
+    super();
+    __publicField(this, "IPC", IPC);
+  }
+}
+const singleton = new IPCModule();
+class MessageQueue extends require$$5.EventEmitter {
+  constructor() {
+    super();
+    __publicField(this, "isListening");
+    __publicField(this, "SOCKET_NAME", "/tmp/electron_python.sock");
+    this.isListening = false;
+    singleton.config.id = "electron";
+    singleton.config.retry = 1500;
+    singleton.config.silent = false;
+    singleton.config.socketRoot = "/tmp/";
+    singleton.config.appspace = "";
+  }
+  async connect() {
+    singleton.connectTo("python", this.SOCKET_NAME, () => {
+      console.log("Connected to Python process");
+      this.startListening();
+    });
+  }
+  async startListening() {
+    if (this.isListening)
+      return;
+    this.isListening = true;
+    singleton.of.python.on("message", (data) => {
+      this.emit("message", data);
+    });
+    singleton.of.python.on("error", (error2) => {
+      console.error("Error receiving message:", error2);
+      this.emit("error", error2);
+    });
+  }
+  async send(message) {
+    singleton.of.python.emit("message", message);
+  }
+  stop() {
+    this.isListening = false;
+    singleton.disconnect("python");
   }
 }
 const store = new Store();
-if (process.env.NODE_ENV === "development") {
-  if (process.platform === "win32") {
-    process.on("message", (data) => {
-      if (data === "graceful-exit") {
-        require$$1$2.app.quit();
-      }
-    });
-  } else {
-    process.on("SIGTERM", () => {
-      require$$1$2.app.quit();
-    });
-  }
-}
 let mainWindow = null;
 let pythonProcess = null;
+let messageQueue = null;
+function startPythonProcess() {
+  console.log("Starting Python process");
+  const isDev = process.env.NODE_ENV === "development";
+  const pythonPath = isDev ? require$$0__namespace.join(__dirname, "../../python/start.py") : require$$0__namespace.join(process.resourcesPath, "python/start.py");
+  pythonProcess = child_process.spawn("python", [pythonPath]);
+  pythonProcess.on("close", (code2) => {
+    console.log(`Python process exited with code ${code2}`);
+  });
+}
 async function createWindow() {
-  mainWindow = new require$$1$2.BrowserWindow({
+  mainWindow = new require$$1$1.BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path__namespace.join(__dirname, "preload.js"),
+      preload: require$$0__namespace.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true
     },
-    // Use these options for a more native feel
-    titleBarStyle: "hiddenInset",
-    backgroundColor: "#0A0F1F",
-    // Dark theme color
     show: false
   });
-  const isPythonInstalled = await checkPythonInstalled();
-  if (!isPythonInstalled) {
-    require$$1$2.dialog.showErrorBox(
-      "Python Not Found",
-      "Python 3 is required to run this application. Please install Python 3 and try again."
-    );
-    require$$1$2.app.quit();
-    return;
-  }
-  await installPythonDependencies(require$$1$2.app.getAppPath());
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path__namespace.join(__dirname, "../dist/index.html"));
+    mainWindow.loadFile(require$$0__namespace.join(__dirname, "../dist/index.html"));
   }
   mainWindow.once("ready-to-show", () => {
     mainWindow == null ? void 0 : mainWindow.show();
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    require$$1$2.shell.openExternal(url);
+    require$$1$1.shell.openExternal(url);
     return { action: "deny" };
   });
-  createApplicationMenu();
+  messageQueue = new MessageQueue();
+  messageQueue.connect().catch((error2) => {
+    console.error("Failed to connect message queue:", error2);
+  });
+  messageQueue.on("message", (data) => {
+    console.log("Received message:", data);
+    mainWindow == null ? void 0 : mainWindow.webContents.send("python-message", data);
+  });
 }
-function createApplicationMenu() {
-  const isMac = process.platform === "darwin";
-  const template = [
-    // App menu (macOS only)
-    ...isMac ? [{
-      label: require$$1$2.app.name,
-      submenu: [
-        { role: "about" },
-        { type: "separator" },
-        { role: "services" },
-        { type: "separator" },
-        { role: "hide" },
-        { role: "hideOthers" },
-        { role: "unhide" },
-        { type: "separator" },
-        { role: "quit" }
-      ]
-    }] : [],
-    // File menu
-    {
-      label: "File",
-      submenu: [
-        {
-          label: "Select Solver Path",
-          click: async () => {
-            if (mainWindow) {
-              mainWindow.webContents.send("menu:select-solver");
-            }
-          }
-        },
-        { type: "separator" },
-        isMac ? { role: "close" } : { role: "quit" }
-      ]
-    },
-    // Edit menu
-    {
-      label: "Edit",
-      submenu: [
-        { role: "undo" },
-        { role: "redo" },
-        { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        ...isMac ? [
-          { role: "pasteAndMatchStyle" },
-          { role: "delete" },
-          { role: "selectAll" },
-          { type: "separator" },
-          {
-            label: "Speech",
-            submenu: [
-              { role: "startSpeaking" },
-              { role: "stopSpeaking" }
-            ]
-          }
-        ] : [
-          { role: "delete" },
-          { type: "separator" },
-          { role: "selectAll" }
-        ]
-      ]
-    },
-    // View menu
-    {
-      label: "View",
-      submenu: [
-        { role: "reload" },
-        { role: "forceReload" },
-        { role: "toggleDevTools" },
-        { type: "separator" },
-        { role: "resetZoom" },
-        { role: "zoomIn" },
-        { role: "zoomOut" },
-        { type: "separator" },
-        { role: "togglefullscreen" }
-      ]
-    },
-    // Help menu
-    {
-      label: "Help",
-      submenu: [
-        {
-          label: "Instructions",
-          click: async () => {
-            const instructionsPath = require$$1$2.app.isPackaged ? path__namespace.join(process.resourcesPath, "public", "instructions.html") : path__namespace.join(require$$1$2.app.getAppPath(), "public", "instructions.html");
-            if (fs__namespace.existsSync(instructionsPath)) {
-              require$$1$2.shell.openExternal(`file://${instructionsPath}`);
-            } else {
-              require$$1$2.dialog.showErrorBox(
-                "Instructions Not Found",
-                "The instructions file could not be found."
-              );
-            }
-          }
-        },
-        {
-          label: "About PioSpeed",
-          click: async () => {
-            require$$1$2.dialog.showMessageBox({
-              title: "About PioSpeed",
-              message: "PioSpeed",
-              detail: "Version 1.0.0\nAn Electron-based interface for PioSOLVER."
-            });
-          }
-        }
-      ]
-    }
-  ];
-  const menu = require$$1$2.Menu.buildFromTemplate(template);
-  require$$1$2.Menu.setApplicationMenu(menu);
-}
-require$$1$2.app.whenReady().then(() => {
+require$$1$1.app.whenReady().then(() => {
+  console.log("App ready");
   createWindow();
-  require$$1$2.app.on("activate", () => {
-    if (require$$1$2.BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+  setupIpcHandlers(messageQueue, store);
+  startPythonProcess();
 });
-require$$1$2.app.on("window-all-closed", () => {
+require$$1$1.app.on("window-all-closed", () => {
+  if (messageQueue) {
+    messageQueue.stop();
+  }
   if (process.platform !== "darwin") {
-    require$$1$2.app.quit();
+    require$$1$1.app.quit();
   }
 });
-require$$1$2.app.on("will-quit", () => {
-  if (pythonProcess) {
-    pythonProcess.kill();
+require$$1$1.app.on("activate", () => {
+  if (require$$1$1.BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
   }
-});
-function startPythonProcess() {
-  try {
-    const pythonExecutable = getEmbeddedPythonPath() || getPythonExecutable();
-    let pythonScriptPath;
-    let mappingsPath;
-    const appPath = require$$1$2.app.getAppPath();
-    const frontendPath = appPath.endsWith("frontend") ? appPath : path__namespace.join(appPath, "frontend");
-    if (require$$1$2.app.isPackaged) {
-      pythonScriptPath = path__namespace.join(process.resourcesPath, "python", "electron_bridge.py");
-      mappingsPath = path__namespace.join(process.resourcesPath, "public", "mappings");
-    } else {
-      pythonScriptPath = path__namespace.join(frontendPath, "python", "electron_bridge.py");
-      mappingsPath = path__namespace.join(frontendPath, "public", "mappings");
-    }
-    console.log("App path:", appPath);
-    console.log("Frontend path:", frontendPath);
-    console.log("Python executable:", pythonExecutable);
-    console.log("Python script path:", pythonScriptPath);
-    console.log("Mappings path:", mappingsPath);
-    if (!fs__namespace.existsSync(pythonScriptPath)) {
-      console.error(`Python script not found at: ${pythonScriptPath}`);
-      throw new Error(`Python script not found at: ${pythonScriptPath}`);
-    }
-    if (!fs__namespace.existsSync(mappingsPath)) {
-      console.warn(`Mappings directory not found at: ${mappingsPath}`);
-    }
-    const env2 = {
-      ...process.env,
-      PIOSPEED_MAPPINGS_PATH: mappingsPath
-    };
-    const childProcess = child_process.spawn(pythonExecutable, [pythonScriptPath], {
-      env: env2,
-      stdio: ["pipe", "pipe", "pipe"]
-      // Enable stdin, stdout, stderr
-    });
-    childProcess.stdout.setEncoding("utf8");
-    childProcess.stderr.setEncoding("utf8");
-    let stdoutBuffer = "";
-    childProcess.stdout.on("data", (data) => {
-      const dataStr = data.toString();
-      stdoutBuffer += dataStr;
-      let jsonStart = 0;
-      let jsonEnd = stdoutBuffer.indexOf("\n", jsonStart);
-      while (jsonEnd !== -1) {
-        const jsonStr = stdoutBuffer.substring(jsonStart, jsonEnd).trim();
-        if (jsonStr) {
-          try {
-            const message = JSON.parse(jsonStr);
-            handlePythonMessage(message);
-          } catch (error2) {
-            console.error("Error parsing JSON from Python:", error2, jsonStr);
-          }
-        }
-        jsonStart = jsonEnd + 1;
-        jsonEnd = stdoutBuffer.indexOf("\n", jsonStart);
-      }
-      stdoutBuffer = stdoutBuffer.substring(jsonStart);
-    });
-    childProcess.stderr.on("data", (data) => {
-      console.log("Python stderr:", data.toString());
-    });
-    childProcess.on("close", (code2) => {
-      console.log(`Python process exited with code ${code2}`);
-      pythonProcess = null;
-      if (code2 !== 0 && mainWindow) {
-        mainWindow.webContents.send("python:error", {
-          message: `Python process exited with code ${code2}`
-        });
-      }
-    });
-    childProcess.on("error", (error2) => {
-      console.error("Error starting Python process:", error2);
-      pythonProcess = null;
-      if (mainWindow) {
-        mainWindow.webContents.send("python:error", {
-          message: `Failed to start Python process: ${error2.message}`
-        });
-      }
-    });
-    return childProcess;
-  } catch (error2) {
-    console.error("Error starting Python process:", error2);
-    require$$1$2.dialog.showErrorBox(
-      "Python Error",
-      `Failed to start Python process: ${error2.message}`
-    );
-    return null;
-  }
-}
-function handlePythonMessage(message) {
-  if (!mainWindow) {
-    console.error("No main window available to send message to");
-    return;
-  }
-  const messageType = message.type;
-  const data = message.data;
-  console.log("Received message from Python:", messageType);
-  switch (messageType) {
-    case "ready":
-      console.log("Python bridge is ready");
-      break;
-    case "output":
-      mainWindow.webContents.send("python:output", data);
-      break;
-    case "error":
-      mainWindow.webContents.send("python:error", data);
-      break;
-    case "step_update":
-      mainWindow.webContents.send("python:step-update", data);
-      break;
-    case "request_input":
-      mainWindow.webContents.send("python:request-input", data);
-      break;
-    case "commands":
-      mainWindow.webContents.send("python:commands", data);
-      break;
-    case "init_complete":
-      mainWindow.webContents.send("python:init-complete", data);
-      break;
-    case "command_complete":
-      mainWindow.webContents.send("python:command-complete", data);
-      break;
-    case "input_received":
-      mainWindow.webContents.send("python:input-received", data);
-      break;
-    default:
-      console.warn("Unknown message type from Python:", messageType);
-  }
-}
-function sendToPython(action, data = {}) {
-  if (!pythonProcess) {
-    console.error("No Python process running");
-    return false;
-  }
-  try {
-    const message = JSON.stringify({
-      action,
-      ...data
-    });
-    pythonProcess.stdin.write(message + "\n");
-    return true;
-  } catch (error2) {
-    console.error("Error sending message to Python:", error2);
-    return false;
-  }
-}
-require$$1$2.ipcMain.handle("select-solver-path", async () => {
-  if (!mainWindow)
-    return null;
-  const { canceled, filePaths } = await require$$1$2.dialog.showOpenDialog(mainWindow, {
-    properties: ["openFile"],
-    filters: [
-      { name: "Executables", extensions: ["exe"] },
-      { name: "All Files", extensions: ["*"] }
-    ]
-  });
-  if (canceled || filePaths.length === 0) {
-    return null;
-  } else {
-    store.set("solverPath", filePaths[0]);
-    return filePaths[0];
-  }
-});
-require$$1$2.ipcMain.handle("get-solver-path", () => {
-  return store.get("solverPath");
-});
-require$$1$2.ipcMain.handle("select-file", async (_, options) => {
-  if (!mainWindow)
-    return null;
-  const { canceled, filePaths } = await require$$1$2.dialog.showOpenDialog(mainWindow, {
-    properties: ["openFile"],
-    filters: options.filters || []
-  });
-  if (canceled || filePaths.length === 0) {
-    return null;
-  } else {
-    return filePaths[0];
-  }
-});
-require$$1$2.ipcMain.handle("select-folder", async () => {
-  if (!mainWindow)
-    return null;
-  const { canceled, filePaths } = await require$$1$2.dialog.showOpenDialog(mainWindow, {
-    properties: ["openDirectory"]
-  });
-  if (canceled || filePaths.length === 0) {
-    return null;
-  } else {
-    return filePaths[0];
-  }
-});
-require$$1$2.ipcMain.handle("init-solver", async (_, solverPath) => {
-  try {
-    if (!pythonProcess) {
-      pythonProcess = startPythonProcess();
-    }
-    if (!pythonProcess) {
-      throw new Error("Failed to start Python process");
-    }
-    sendToPython("init", { solverPath });
-    return { success: true, message: "Solver initialization requested" };
-  } catch (error2) {
-    console.error("Error initializing solver:", error2);
-    return { success: false, message: error2.message };
-  }
-});
-require$$1$2.ipcMain.handle("execute-command", async (_, solverPath, command, args) => {
-  try {
-    if (!pythonProcess) {
-      pythonProcess = startPythonProcess();
-    }
-    if (!pythonProcess) {
-      throw new Error("Failed to start Python process");
-    }
-    sendToPython("run_command", { solverPath, command, args });
-    return { success: true, message: "Command execution requested" };
-  } catch (error2) {
-    console.error("Error executing command:", error2);
-    return { success: false, message: error2.message };
-  }
-});
-require$$1$2.ipcMain.handle("get-commands", async () => {
-  try {
-    if (!pythonProcess) {
-      pythonProcess = startPythonProcess();
-    }
-    if (!pythonProcess) {
-      throw new Error("Failed to start Python process");
-    }
-    sendToPython("get_commands");
-    return { success: true, message: "Commands requested" };
-  } catch (error2) {
-    console.error("Error getting commands:", error2);
-    return { success: false, message: error2.message };
-  }
-});
-require$$1$2.ipcMain.handle("send-input-to-python", async (_, input) => {
-  try {
-    if (!pythonProcess) {
-      return { success: false, message: "No Python process running" };
-    }
-    sendToPython("input", { input });
-    return { success: true, message: "Input sent to Python" };
-  } catch (error2) {
-    console.error("Error sending input to Python:", error2);
-    return { success: false, message: error2.message };
-  }
-});
-require$$1$2.ipcMain.handle("save-folder-path", (_, { key, path: path2 }) => {
-  store.set(`folders.${key}`, path2);
-  return true;
-});
-require$$1$2.ipcMain.handle("get-folder-path", (_, { key }) => {
-  return store.get(`folders.${key}`);
 });
