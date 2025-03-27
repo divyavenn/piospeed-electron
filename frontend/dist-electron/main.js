@@ -14927,6 +14927,8 @@ class MessageQueue extends require$$5.EventEmitter {
     this.isConnected = false;
     this.reconnectAttempts = 0;
     this.MAX_RECONNECT_ATTEMPTS = 3;
+    this.isStopped = false;
+    this.reconnectTimeout = null;
     this.isListening = false;
     ipc.config.id = "electron";
     ipc.config.retry = 1500;
@@ -14935,7 +14937,7 @@ class MessageQueue extends require$$5.EventEmitter {
     ipc.config.appspace = "";
   }
   async connect() {
-    if (this.isConnected)
+    if (this.isConnected || this.isStopped)
       return;
     return new Promise((resolve2, reject) => {
       ipc.connectTo("python", this.SOCKET_NAME, () => {
@@ -14957,16 +14959,28 @@ class MessageQueue extends require$$5.EventEmitter {
     });
   }
   handleDisconnect() {
+    if (this.isStopped)
+      return;
     this.isConnected = false;
     this.isReady = false;
     if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
       this.reconnectAttempts++;
       console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})...`);
-      setTimeout(() => this.connect(), 1e3);
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+      }
+      this.reconnectTimeout = setTimeout(() => {
+        if (!this.isStopped) {
+          this.connect();
+        }
+      }, 1e3);
+    } else {
+      console.log("Max reconnection attempts reached");
+      this.stop();
     }
   }
   async startListening() {
-    if (this.isListening)
+    if (this.isListening || this.isStopped)
       return;
     this.isListening = true;
     ipc.of.python.on("message", (data) => {
@@ -14980,7 +14994,7 @@ class MessageQueue extends require$$5.EventEmitter {
     });
   }
   async send(message) {
-    if (!this.isConnected) {
+    if (!this.isConnected || this.isStopped) {
       console.warn("Not connected to Python process");
       return;
     }
@@ -14997,9 +15011,14 @@ class MessageQueue extends require$$5.EventEmitter {
     }
   }
   stop() {
+    this.isStopped = true;
     this.isListening = false;
     this.isConnected = false;
     this.isReady = false;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
     if (ipc.of.python) {
       ipc.disconnect("python");
     }
@@ -15033,6 +15052,7 @@ async function createWindow() {
     require$$1$2.shell.openExternal(url);
     return { action: "deny" };
   });
+  return mainWindow;
 }
 function startPythonProcess() {
   var _a, _b;
@@ -15069,14 +15089,11 @@ function startPythonProcess() {
 }
 require$$1$2.app.whenReady().then(async () => {
   console.log("App ready");
-  createWindow();
-  startPythonProcess();
-  await new Promise((resolve2) => setTimeout(resolve2, 1e3));
   messageQueue = new MessageQueue();
-  await messageQueue.connect().catch((error2) => {
-    console.error("Failed to connect message queue:", error2);
-  });
+  await messageQueue.connect();
+  mainWindow = await createWindow();
   setupIpcHandlers(mainWindow, messageQueue, store);
+  startPythonProcess();
 });
 require$$1$2.app.on("window-all-closed", () => {
   console.log("Window closed, cleaning up...");

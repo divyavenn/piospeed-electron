@@ -15,118 +15,87 @@ def print_host_info():
     print(f"Local IP: {local_ip}")
 
 class MessageQueue:
-    def __init__(self):
-        self.socket_path = '/tmp/electron_python.sock'
+    def __init__(self, socket_path: str = '/tmp/electron_python.sock'):
+        self.socket_path = socket_path
+        self.server = None
         self.current_client = None
         self.current_writer = None
-        print("Unix domain socket server started, waiting for messages...")
+        self.is_connected = False
+        self.connection_event = asyncio.Event()
+        self.loop = asyncio.get_event_loop()
+        print(f"Initialized MessageQueue with socket path: {socket_path}")
 
-    async def receive(self):
+    async def start(self):
         try:
-            # Create Unix domain socket server
-            server = await asyncio.start_unix_server(
+            self.server = await asyncio.start_unix_server(
                 self.handle_client,
                 self.socket_path
             )
             print(f"Server listening on {self.socket_path}")
-            await server.serve_forever()
+            # Wait for connection before sending ready message
+            await self.connection_event.wait()
+            await self.send({"type": "ready"})
         except Exception as e:
-            print(f"Error in receive: {e}")
-            return None
+            print(f"Error starting server: {e}")
+            raise
 
-    async def handle_client(self, reader, writer):
-        if self.current_client:
-            print("Rejecting new connection - already have a client")
+    async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        if self.current_client is not None:
+            print("Rejecting new connection - already connected")
             writer.close()
             await writer.wait_closed()
             return
 
-        self.current_client = id(writer)
+        self.current_client = writer
         self.current_writer = writer
-        print(f"New client connected: {self.current_client}")
-        
+        self.is_connected = True
+        self.connection_event.set()
+        print(f"New client connected: {id(writer)}")
+
         try:
             while True:
+                data = await reader.readline()
+                if not data:
+                    break
                 try:
-                    # Read message length (4 bytes)
-                    length_bytes = await reader.readexactly(4)
-                    message_length = struct.unpack('!I', length_bytes)[0]
-                    
-                    # Read the actual message
-                    message_bytes = await reader.readexactly(message_length)
-                    message = json.loads(message_bytes.decode())
-                    
-                    print(f"Received message from client {self.current_client}: {message}")
-                    
-                    # Process the message
-                    if message.get('type') == 'ready':
-                        print(f"Client {self.current_client} is ready")
-                    
-                    # Send acknowledgment
-                    response = json.dumps({"status": "ok"})
-                    response_bytes = response.encode()
-                    writer.write(struct.pack('!I', len(response_bytes)) + response_bytes)
-                    await writer.drain()
-                    
-                except asyncio.IncompleteReadError:
-                    print(f"Client {self.current_client} disconnected")
-                    break
-                except Exception as e:
-                    print(f"Error handling message from client {self.current_client}: {e}")
-                    break
-                
+                    message = json.loads(data.decode())
+                    print(f"Received message: {message}")
+                    # Handle message here
+                except json.JSONDecodeError:
+                    print(f"Invalid JSON received: {data}")
         except Exception as e:
-            print(f"Error handling client {self.current_client}: {e}")
+            print(f"Error handling client: {e}")
         finally:
-            try:
-                writer.close()
-                await writer.wait_closed()
-                print(f"Client {self.current_client} connection closed")
-                if self.current_client == id(writer):
-                    self.current_client = None
-                    self.current_writer = None
-            except Exception as e:
-                print(f"Error closing client {self.current_client} connection: {e}")
+            self.current_client = None
+            self.current_writer = None
+            self.is_connected = False
+            writer.close()
+            await writer.wait_closed()
+            print("Client disconnected")
 
-    async def send(self, status, message, expect_response=False):
+    async def send(self, message: dict):
         if not self.current_writer:
             print("No active connection to send message")
-            return None
+            return
 
         try:
-            # Prepare message
-            message_data = json.dumps({'type': status, 'message': message})
-            message_bytes = message_data.encode()
-            
-            # Send message length and data
-            self.current_writer.write(struct.pack('!I', len(message_bytes)) + message_bytes)
+            data = json.dumps(message) + "\n"
+            self.current_writer.write(data.encode())
             await self.current_writer.drain()
-            
-            # Only read response if expected
-            if expect_response:
-                response_length_bytes = await self.current_reader.readexactly(4)
-                response_length = struct.unpack('!I', response_length_bytes)[0]
-                response_bytes = await self.current_reader.readexactly(response_length)
-                response = json.loads(response_bytes.decode())
-            else:
-                response = None
-            
-            return response
         except Exception as e:
             print(f"Error sending message: {e}")
-            return None
+            self.current_client = None
+            self.current_writer = None
+            self.is_connected = False
 
     async def run(self):
         print("Starting message loop...")
         try:
             # Start the server first
-            server_task = asyncio.create_task(self.receive())
+            server_task = asyncio.create_task(self.start())
             
             # Wait a bit for the server to start
             await asyncio.sleep(1)
-            
-            # Send ready message to indicate initialization is complete
-            await self.send("ready", None)
             
             # Wait for the server task
             await server_task

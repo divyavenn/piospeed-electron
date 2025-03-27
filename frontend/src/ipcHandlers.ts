@@ -39,9 +39,10 @@ export function setupIpcHandlers(mainWindow: BrowserWindow, messageQueue: Messag
         return store.get('solverPath');
     });
 
-    // Handle regular Python messages
+      // Set up message handler for Python messages
     messageQueue.on('message', (data: any) => {
       console.log('Received message from Python:', data);
       mainWindow?.webContents.send('python-message', data);
-    });
+  });
+
 }

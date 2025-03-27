@@ -45,6 +45,8 @@ async function createWindow() {
     shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  return mainWindow;
 }
 
 // Function to start Python process
@@ -98,24 +100,23 @@ function startPythonProcess() {
 
 // App lifecycle handlers
 app.whenReady().then(async () => {
-  console.log("App ready");
+  console.log('App ready');
   
-  // Create window first
-  createWindow();
-  
-  // Start Python process before connecting to message queue
+  // Start Python process first
   startPythonProcess();
   
   // Wait for Python process to create the socket
   await new Promise(resolve => setTimeout(resolve, 1000));
   
-  // Initialize and start the message queue last
+  // Create and connect MessageQueue
   messageQueue = new MessageQueue();
-  await messageQueue.connect().catch((error: Error) => {
-    console.error('Failed to connect message queue:', error);
-  });
+  await messageQueue.connect();
+  
+  // Create the window
+  mainWindow = await createWindow();
 
-  setupIpcHandlers(mainWindow!, messageQueue!, store);
+  // Set up IPC handlers after window is created
+  setupIpcHandlers(mainWindow, messageQueue, store);
 });
 
 // Handle window close

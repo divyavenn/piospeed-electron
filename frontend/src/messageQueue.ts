@@ -17,6 +17,8 @@ export class MessageQueue extends EventEmitter {
   private isConnected: boolean = false;
   private reconnectAttempts: number = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 3;
+  private isStopped: boolean = false;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
 
   constructor() {
     super();
@@ -29,7 +31,7 @@ export class MessageQueue extends EventEmitter {
   }
 
   async connect(): Promise<void> {
-    if (this.isConnected) return;
+    if (this.isConnected || this.isStopped) return;
 
     return new Promise((resolve, reject) => {
       ipc.connectTo('python', this.SOCKET_NAME, () => {
@@ -54,17 +56,34 @@ export class MessageQueue extends EventEmitter {
   }
 
   private handleDisconnect() {
+    if (this.isStopped) return;
+    
     this.isConnected = false;
     this.isReady = false;
+    
     if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
       this.reconnectAttempts++;
       console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})...`);
-      setTimeout(() => this.connect(), 1000);
+      
+      // Clear any existing timeout
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+      }
+      
+      // Set new timeout
+      this.reconnectTimeout = setTimeout(() => {
+        if (!this.isStopped) {
+          this.connect();
+        }
+      }, 1000);
+    } else {
+      console.log('Max reconnection attempts reached');
+      this.stop();
     }
   }
 
   async startListening(): Promise<void> {
-    if (this.isListening) return;
+    if (this.isListening || this.isStopped) return;
     this.isListening = true;
 
     ipc.of.python.on('message', (data: Message) => {
@@ -79,7 +98,7 @@ export class MessageQueue extends EventEmitter {
   }
 
   async send(message: Message): Promise<void> {
-    if (!this.isConnected) {
+    if (!this.isConnected || this.isStopped) {
       console.warn('Not connected to Python process');
       return;
     }
@@ -99,9 +118,17 @@ export class MessageQueue extends EventEmitter {
   }
 
   stop(): void {
+    this.isStopped = true;
     this.isListening = false;
     this.isConnected = false;
     this.isReady = false;
+    
+    // Clear any pending reconnection timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    
     if (ipc.of.python) {
       ipc.disconnect('python');
     }
