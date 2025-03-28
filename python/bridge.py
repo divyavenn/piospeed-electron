@@ -10,6 +10,12 @@ def print_host_info():
     hostname = socket.gethostname()
     local_ip = socket.gethostbyname(hostname)
 
+
+class Message:
+    def __init__(self, type: str, data: any):
+        self.type = type
+        self.data = data
+
 class MessageQueue:
     def __init__(self, socket_path: str = '/tmp/electron_python.sock'):
         self.socket_path = socket_path
@@ -32,7 +38,7 @@ class MessageQueue:
             # Wait for connection before sending ready message
             await self.connection_event.wait()
             # send message to client that the server is ready
-            await self.send({"message": "ready"})
+            await self.send(Message("ready", None))
         except Exception as e:
             print(f"Error starting server: {e}")
             raise
@@ -57,13 +63,17 @@ class MessageQueue:
         data = await self.current_writer.readline()
         return json.loads(data.decode())
 
-    async def send(self, message: dict):
+    async def send(self, message: Message):
         if not self.current_writer:
             print("No active connection to send message")
             return
 
         try:
-            data = json.dumps(message) + "\n"
+            json_message = {
+                "type": message.type,
+                "data": message.data
+            }
+            data = json.dumps(json_message) + "\n"
             self.current_writer.write(data.encode())
             await self.current_writer.drain()
         except Exception as e:

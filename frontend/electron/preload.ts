@@ -1,56 +1,54 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-// Define the Python request input interface
-interface PyRequestInput {
-  type: 'request_input';
-  input_type: 'text' | 'file' | 'directory' | 'command';
-  prompt?: string;
-  default_location?: string;
-  commands?: string[];
-}
 
-// Define the exposed API types
+
+// any components that subscribe to these events will be notified of whenever it changes
+// React UI → preload.ts → ipcHandlers.ts → messageQueue.ts → Python bridge.py
+
 interface ElectronAPI {
-  // File operations
-  selectSolverPath: () => Promise<string | null>;
-  selectFile: (options: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>;
-  selectFolder: () => Promise<string | null>;
-  
-  // Store operations
-  saveFolderPath: (params: { key: string; path: string }) => Promise<boolean>;
-  getFolderPath: (params: { key: string }) => Promise<string | null>;
-  getFilePath: (params: { key: string }) => Promise<string | null>;
-  getSolverPath: () => Promise<string | null>;
-  
   // Python bridge operations
-  sendSolverPath: (path: string) => void;
+  sendToPython: (message: any) => Promise<void>;
   onPythonMessage: (callback: (data: any) => void) => void;
   removePythonMessageListener: (callback: (data: any) => void) => void;
+  
+  // Connection state operations
+  getConnectionState: () => Promise<number>;
+  onConnectionStateChange: (callback: (state: number) => void) => void;
+  removeConnectionStateListener: (callback: (state: number) => void) => void;
 }
 
-// Expose the API to the renderer process
+// exposes a set of functions to the renderer process (the React app) under the global variable electron
 contextBridge.exposeInMainWorld('electron', {
-  // File operations
-  selectSolverPath: () => ipcRenderer.invoke('select-solver-path'),
-  selectFile: (options) => ipcRenderer.invoke('select-file', options),
-  selectFolder: () => ipcRenderer.invoke('select-folder'),
-  
-  // Store operations
-  saveFolderPath: (params) => ipcRenderer.invoke('save-folder-path', params),
-  getFolderPath: (params) => ipcRenderer.invoke('get-folder-path', params),
-  getSolverPath: () => ipcRenderer.invoke('get-solver-path'),
-  
-  // Python bridge operations
-  sendSolverPath: (path) => ipcRenderer.send('send-solver-path', path),
+
+  //Sends a message to the Python backend via IPC, wait for confirmation
+  sendToPython: (message) => ipcRenderer.invoke('send-to-python', message), 
+
+  // sets up a python listener for messages
   onPythonMessage: (callback: (data: any) => void) => {
     ipcRenderer.on('python-message', (_, data) => callback(data));
   },
+
+  //Removes a previously  listner
   removePythonMessageListener: (callback: (data: any) => void) => {
     ipcRenderer.removeListener('python-message', callback);
+  },
+  
+
+  // Gets the current connection state
+  getConnectionState: () => ipcRenderer.invoke('get-connection-state'),
+
+  // sets up a listener for connection state changes
+  onConnectionStateChange: (callback: (state: number) => void) => {
+    ipcRenderer.on('connection-state-change', (_, state) => callback(state));
+  },
+
+  //Removes the connection state lisener 
+  removeConnectionStateListener: (callback: (state: number) => void) => {
+    ipcRenderer.removeListener('connection-state-change', callback);
   }
 } as ElectronAPI);
 
-// Let the renderer know preload script has loaded
+// We'll keep the version display code if it's being used
 window.addEventListener('DOMContentLoaded', () => {
   const replaceText = (selector: string, text: string) => {
     const element = document.getElementById(selector);
@@ -60,4 +58,4 @@ window.addEventListener('DOMContentLoaded', () => {
   for (const dependency of ['chrome', 'node', 'electron']) {
     replaceText(`${dependency}-version`, process.versions[dependency] || 'unknown');
   }
-}); 
+});

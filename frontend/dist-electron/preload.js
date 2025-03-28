@@ -1,21 +1,25 @@
 "use strict";
 const electron = require("electron");
 electron.contextBridge.exposeInMainWorld("electron", {
-  // File operations
-  selectSolverPath: () => electron.ipcRenderer.invoke("select-solver-path"),
-  selectFile: (options) => electron.ipcRenderer.invoke("select-file", options),
-  selectFolder: () => electron.ipcRenderer.invoke("select-folder"),
-  // Store operations
-  saveFolderPath: (params) => electron.ipcRenderer.invoke("save-folder-path", params),
-  getFolderPath: (params) => electron.ipcRenderer.invoke("get-folder-path", params),
-  getSolverPath: () => electron.ipcRenderer.invoke("get-solver-path"),
-  // Python bridge operations
-  sendSolverPath: (path) => electron.ipcRenderer.send("send-solver-path", path),
+  //Sends a message to the Python backend via IPC, wait for confirmation
+  sendToPython: (message) => electron.ipcRenderer.invoke("send-to-python", message),
+  // sets up a python listener for messages
   onPythonMessage: (callback) => {
     electron.ipcRenderer.on("python-message", (_, data) => callback(data));
   },
+  //Removes a previously  listner
   removePythonMessageListener: (callback) => {
     electron.ipcRenderer.removeListener("python-message", callback);
+  },
+  // Gets the current connection state
+  getConnectionState: () => electron.ipcRenderer.invoke("get-connection-state"),
+  // sets up a listener for connection state changes
+  onConnectionStateChange: (callback) => {
+    electron.ipcRenderer.on("connection-state-change", (_, state) => callback(state));
+  },
+  //Removes the connection state lisener 
+  removeConnectionStateListener: (callback) => {
+    electron.ipcRenderer.removeListener("connection-state-change", callback);
   }
 });
 window.addEventListener("DOMContentLoaded", () => {

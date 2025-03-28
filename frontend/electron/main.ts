@@ -85,10 +85,16 @@ function startPythonProcess() {
 
     pythonProcess.on('error', (error) => {
       console.error('Failed to start Python process:', error);
+      if (messageQueue) {
+        messageQueue.pythonExited();
+      }
     });
 
     pythonProcess.on('close', (code: number) => {
       console.log(`Python process exited with code ${code}`);
+      if (messageQueue) {
+        messageQueue.pythonExited();
+      }
     });
 
   } catch (error) {
@@ -133,16 +139,13 @@ app.on('window-all-closed', () => {
     pythonProcess = null;
   }
   
-  // Quit the app
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // Quit the app on all platforms (including macOS)
+  app.quit();
 });
 
-
+// Handle macOS-specific event
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
-

@@ -11,7 +11,7 @@ export interface Message {
 }
 
 // Connection states
-enum ConnectionState {
+export enum ConnectionState {
   DISCONNECTED,
   CONNECTING,
   CONNECTED,
@@ -20,11 +20,12 @@ enum ConnectionState {
 }
 
 export class MessageQueue extends EventEmitter {
-  private state: ConnectionState = ConnectionState.DISCONNECTED;
+  private _state: ConnectionState = ConnectionState.DISCONNECTED;
   private readonly SOCKET_NAME = '/tmp/electron_python.sock';
   private reconnectAttempts: number = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 3;
   private reconnectTimeout: NodeJS.Timeout | null = null;
+  private pythonProcessExited: boolean = false;
 
   constructor() {
     super();
@@ -39,15 +40,47 @@ export class MessageQueue extends EventEmitter {
     ipc.config.retryTimer = 0;
   }
 
+  // Add getter and setter for state to emit events when state changes
+  private get state(): ConnectionState {
+    return this._state;
+  }
+
+  private set state(newState: ConnectionState) {
+    if (this._state !== newState) {
+      const oldState = this._state;
+      this._state = newState;
+      console.log(`Connection state changed: ${ConnectionState[oldState]} -> ${ConnectionState[newState]}`);
+      this.emit('connection-state-change', newState);
+    }
+  }
+
+  // Get current connection state
+  public getConnectionState(): ConnectionState {
+    return this._state;
+  }
+
+  // Called when Python process exits
+  public pythonExited(): void {
+    console.log("Python process has exited, stopping reconnection attempts");
+    this.pythonProcessExited = true;
+    this.stop();
+  }
+
   async connect(): Promise<void> {
     // Don't attempt to connect if already connected or connecting or stopped
-    if (this.state !== ConnectionState.DISCONNECTED) return;
+    if (this.state !== ConnectionState.DISCONNECTED || this.pythonProcessExited) return;
     
     this.state = ConnectionState.CONNECTING;
 
     try {
       await this.tryConnect();
     } catch (err) {
+      // If Python has exited, don't try to reconnect
+      if (this.pythonProcessExited) {
+        this.stop();
+        return;
+      }
+
       this.reconnectAttempts++;
       console.warn(`Reconnect attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} failed.`);
       
@@ -64,12 +97,16 @@ export class MessageQueue extends EventEmitter {
   private tryConnect(): Promise<void> {
     return new Promise((resolve, reject) => {
       // Clean up any existing connection
-      if (this.state === ConnectionState.STOPPED) return;
+      if (this.state === ConnectionState.STOPPED || this.pythonProcessExited) {
+        reject(new Error('Connection stopped'));
+        return;
+      }
+      
       this.cleanupExistingConnection();
 
       // Set up connection
       ipc.connectTo('python', this.SOCKET_NAME, () => {
-        if (this.state === ConnectionState.STOPPED) {
+        if (this.state === ConnectionState.STOPPED || this.pythonProcessExited) {
           ipc.disconnect('python');
           reject(new Error('Connection stopped'));
           return;
@@ -106,7 +143,7 @@ export class MessageQueue extends EventEmitter {
     // Error handler
     ipc.of.python.on('error', (error: Error) => {
       console.error("Connection error:", error);
-      if (this.state !== ConnectionState.STOPPED) {
+      if (this.state !== ConnectionState.STOPPED && !this.pythonProcessExited) {
         this.handleDisconnect();
       }
     });
@@ -114,26 +151,32 @@ export class MessageQueue extends EventEmitter {
     // Disconnect handler
     ipc.of.python.on('disconnect', () => {
       console.log("Disconnected from Python process");
-      if (this.state !== ConnectionState.STOPPED) {
+      if (this.state !== ConnectionState.STOPPED && !this.pythonProcessExited) {
         this.handleDisconnect();
       }
     });
   }
 
   private handleDisconnect(): void {
-    if (this.state === ConnectionState.STOPPED) return;
+    if (this.state === ConnectionState.STOPPED || this.pythonProcessExited) return;
     
     this.state = ConnectionState.DISCONNECTED;
     
-    if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+    if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS && !this.pythonProcessExited) {
       this.scheduleReconnect();
     } else {
-      console.log('Max reconnection attempts reached');
+      console.log('Max reconnection attempts reached or Python process exited');
       this.stop();
     }
   }
 
   private scheduleReconnect(): void {
+    // Don't schedule reconnection if Python has exited
+    if (this.pythonProcessExited) {
+      this.stop();
+      return;
+    }
+    
     // Clear any existing timeout
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
@@ -141,7 +184,7 @@ export class MessageQueue extends EventEmitter {
     
     // Set new timeout
     this.reconnectTimeout = setTimeout(() => {
-      if (this.state !== ConnectionState.STOPPED) {
+      if (this.state !== ConnectionState.STOPPED && !this.pythonProcessExited) {
         this.connect();
       }
     }, 1000);

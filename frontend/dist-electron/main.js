@@ -14489,12 +14489,12 @@ var onetimeExports = onetime$1.exports;
       const fileExtension = options.fileExtension ? `.${options.fileExtension}` : "";
       this.path = path2.resolve(options.cwd, `${(_a2 = options.configName) !== null && _a2 !== void 0 ? _a2 : "config"}${fileExtension}`);
       const fileStore = this.store;
-      const store2 = Object.assign(createPlainObject(), options.defaults, fileStore);
-      this._validate(store2);
+      const store = Object.assign(createPlainObject(), options.defaults, fileStore);
+      this._validate(store);
       try {
-        assert.deepEqual(fileStore, store2);
+        assert.deepEqual(fileStore, store);
       } catch (_b2) {
-        this.store = store2;
+        this.store = store;
       }
       if (options.watch) {
         this._watch();
@@ -14513,8 +14513,8 @@ var onetimeExports = onetime$1.exports;
       if (__classPrivateFieldGet(this, _Conf_options, "f").accessPropertiesByDotNotation) {
         return this._get(key, defaultValue);
       }
-      const { store: store2 } = this;
-      return key in store2 ? store2[key] : defaultValue;
+      const { store } = this;
+      return key in store ? store[key] : defaultValue;
     }
     set(key, value) {
       if (typeof key !== "string" && typeof key !== "object") {
@@ -14526,13 +14526,13 @@ var onetimeExports = onetime$1.exports;
       if (this._containsReservedKey(key)) {
         throw new TypeError(`Please don't use the ${INTERNAL_KEY} key, as it's used to manage this module internal operations.`);
       }
-      const { store: store2 } = this;
+      const { store } = this;
       const set = (key2, value2) => {
         checkValueType(key2, value2);
         if (__classPrivateFieldGet(this, _Conf_options, "f").accessPropertiesByDotNotation) {
-          dotProp$1.set(store2, key2, value2);
+          dotProp$1.set(store, key2, value2);
         } else {
-          store2[key2] = value2;
+          store[key2] = value2;
         }
       };
       if (typeof key === "object") {
@@ -14543,7 +14543,7 @@ var onetimeExports = onetime$1.exports;
       } else {
         set(key, value);
       }
-      this.store = store2;
+      this.store = store;
     }
     /**
     	    Check if an item exists.
@@ -14576,13 +14576,13 @@ var onetimeExports = onetime$1.exports;
     	    @param key - The key of the item to delete.
     	    */
     delete(key) {
-      const { store: store2 } = this;
+      const { store } = this;
       if (__classPrivateFieldGet(this, _Conf_options, "f").accessPropertiesByDotNotation) {
-        dotProp$1.delete(store2, key);
+        dotProp$1.delete(store, key);
       } else {
-        delete store2[key];
+        delete store[key];
       }
-      this.store = store2;
+      this.store = store;
     }
     /**
     	    Delete all items.
@@ -14811,9 +14811,9 @@ var onetimeExports = onetime$1.exports;
       return dotProp$1.get(this.store, key, defaultValue);
     }
     _set(key, value) {
-      const { store: store2 } = this;
-      dotProp$1.set(store2, key, value);
-      this.store = store2;
+      const { store } = this;
+      dotProp$1.set(store, key, value);
+      this.store = store;
     }
   }
   exports.default = Conf2;
@@ -14883,158 +14883,153 @@ class ElectronStore extends Conf {
 }
 var electronStore = ElectronStore;
 const Store = /* @__PURE__ */ getDefaultExportFromCjs(electronStore);
-function setupIpcHandlers(mainWindow2, messageQueue2, store2) {
-  require$$1$2.ipcMain.handle("send-to-python", async (_, message) => {
-    try {
-      await messageQueue2.send(message);
-    } catch (error2) {
-      console.error("Failed to send message to Python:", error2);
-    }
-  });
-  require$$1$2.ipcMain.handle("select-file", async (_, options) => {
-    const result = await require$$1$2.dialog.showOpenDialog({
-      properties: ["openFile"],
-      filters: (options == null ? void 0 : options.filters) || []
-    });
-    if (!result.canceled && result.filePaths.length > 0) {
-      return result.filePaths[0];
-    }
-    return null;
-  });
-  require$$1$2.ipcMain.handle("select-folder", async () => {
-    const result = await require$$1$2.dialog.showOpenDialog({
-      properties: ["openDirectory"]
-    });
-    if (!result.canceled && result.filePaths.length > 0) {
-      return result.filePaths[0];
-    }
-    return null;
-  });
-  require$$1$2.ipcMain.handle("get-solver-path", async () => {
-    return store2.get("solverPath");
-  });
-  messageQueue2.on("message", (data) => {
-    console.log("Received message from Python:", data);
-    mainWindow2 == null ? void 0 : mainWindow2.webContents.send("python-message", data);
-  });
-}
 const ipc = require("node-ipc").default;
+var ConnectionState = /* @__PURE__ */ ((ConnectionState2) => {
+  ConnectionState2[ConnectionState2["DISCONNECTED"] = 0] = "DISCONNECTED";
+  ConnectionState2[ConnectionState2["CONNECTING"] = 1] = "CONNECTING";
+  ConnectionState2[ConnectionState2["CONNECTED"] = 2] = "CONNECTED";
+  ConnectionState2[ConnectionState2["READY"] = 3] = "READY";
+  ConnectionState2[ConnectionState2["STOPPED"] = 4] = "STOPPED";
+  return ConnectionState2;
+})(ConnectionState || {});
 class MessageQueue extends require$$5.EventEmitter {
   constructor() {
     super();
-    this.isReady = false;
+    this._state = 0;
     this.SOCKET_NAME = "/tmp/electron_python.sock";
-    this.isConnected = false;
     this.reconnectAttempts = 0;
     this.MAX_RECONNECT_ATTEMPTS = 3;
-    this.isStopped = false;
     this.reconnectTimeout = null;
-    this.isListening = false;
+    this.pythonProcessExited = false;
     ipc.config.id = "electron";
-    ipc.config.retry = 0;
     ipc.config.silent = false;
     ipc.config.socketRoot = "/tmp/";
     ipc.config.appspace = "";
     ipc.config.stopRetrying = true;
     ipc.config.maxRetries = 0;
-    ipc.config.retry = 0;
     ipc.config.retryTimer = 0;
   }
+  // Add getter and setter for state to emit events when state changes
+  get state() {
+    return this._state;
+  }
+  set state(newState) {
+    if (this._state !== newState) {
+      const oldState = this._state;
+      this._state = newState;
+      console.log(`Connection state changed: ${ConnectionState[oldState]} -> ${ConnectionState[newState]}`);
+      this.emit("connection-state-change", newState);
+    }
+  }
+  // Get current connection state
+  getConnectionState() {
+    return this._state;
+  }
+  // Called when Python process exits
+  pythonExited() {
+    console.log("Python process has exited, stopping reconnection attempts");
+    this.pythonProcessExited = true;
+    this.stop();
+  }
   async connect() {
-    if (this.isConnected || this.isStopped)
+    if (this.state !== 0 || this.pythonProcessExited)
       return;
-    const tryConnect = () => new Promise((resolve2, reject) => {
-      if (this.isStopped) {
-        reject(new Error("Connection stopped"));
-        return;
-      }
-      if (ipc.of.python) {
-        ipc.disconnect("python");
-        delete ipc.of.python;
-      }
-      ipc.connectTo("python", this.SOCKET_NAME, () => {
-        if (this.isStopped) {
-          ipc.disconnect("python");
-          reject(new Error("Connection stopped"));
-          return;
-        }
-        console.log("Connected to Python process");
-        this.isConnected = true;
-        this.reconnectAttempts = 0;
-        this.startListening();
-        resolve2();
-      });
-      ipc.of.python.on("error", (error2) => {
-        console.error("Connection error:", error2);
-        if (!this.isStopped) {
-          reject(error2);
-        }
-      });
-      ipc.of.python.on("disconnect", () => {
-        console.log("Disconnected from Python process");
-        if (!this.isStopped) {
-          this.handleDisconnect();
-        }
-      });
-    });
+    this.state = 1;
     try {
-      await tryConnect();
+      await this.tryConnect();
     } catch (err) {
-      if (this.isStopped)
+      if (this.pythonProcessExited) {
+        this.stop();
         return;
+      }
       this.reconnectAttempts++;
       console.warn(`Reconnect attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} failed.`);
       if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
         console.error("Max reconnection attempts reached. Giving up.");
         this.stop();
       } else {
-        await new Promise((res) => setTimeout(res, 1e3));
-        if (!this.isStopped) {
-          this.handleDisconnect();
-        }
+        this.scheduleReconnect();
       }
     }
   }
-  handleDisconnect() {
-    if (this.isStopped)
-      return;
-    this.isConnected = false;
-    this.isReady = false;
-    if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
-      if (this.reconnectTimeout) {
-        clearTimeout(this.reconnectTimeout);
+  tryConnect() {
+    return new Promise((resolve2, reject) => {
+      if (this.state === 4 || this.pythonProcessExited) {
+        reject(new Error("Connection stopped"));
+        return;
       }
-      this.reconnectTimeout = setTimeout(() => {
-        if (!this.isStopped) {
-          this.connect();
+      this.cleanupExistingConnection();
+      ipc.connectTo("python", this.SOCKET_NAME, () => {
+        if (this.state === 4 || this.pythonProcessExited) {
+          ipc.disconnect("python");
+          reject(new Error("Connection stopped"));
+          return;
         }
-      }, 1e3);
-    } else {
-      console.log("Max reconnection attempts reached");
-      this.stop();
+        console.log("Connected to Python process");
+        this.state = 2;
+        this.reconnectAttempts = 0;
+        this.setupListeners();
+        resolve2();
+      });
+    });
+  }
+  cleanupExistingConnection() {
+    if (ipc.of.python) {
+      ipc.disconnect("python");
+      delete ipc.of.python;
     }
   }
-  async startListening() {
-    if (this.isListening || this.isStopped)
-      return;
-    this.isListening = true;
+  setupListeners() {
     ipc.of.python.on("message", (data) => {
       if (data.type === "ready") {
         console.log("Python process is ready");
-        this.isReady = true;
+        this.state = 3;
         this.emit("ready");
       } else {
         this.emit("message", data);
       }
     });
+    ipc.of.python.on("error", (error2) => {
+      console.error("Connection error:", error2);
+      if (this.state !== 4 && !this.pythonProcessExited) {
+        this.handleDisconnect();
+      }
+    });
+    ipc.of.python.on("disconnect", () => {
+      console.log("Disconnected from Python process");
+      if (this.state !== 4 && !this.pythonProcessExited) {
+        this.handleDisconnect();
+      }
+    });
   }
-  async send(message) {
-    if (!this.isConnected || this.isStopped) {
-      console.warn("Not connected to Python process");
+  handleDisconnect() {
+    if (this.state === 4 || this.pythonProcessExited)
+      return;
+    this.state = 0;
+    if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS && !this.pythonProcessExited) {
+      this.scheduleReconnect();
+    } else {
+      console.log("Max reconnection attempts reached or Python process exited");
+      this.stop();
+    }
+  }
+  scheduleReconnect() {
+    if (this.pythonProcessExited) {
+      this.stop();
       return;
     }
-    if (!this.isListening || !this.isReady) {
-      console.warn("Not ready to send message");
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+    this.reconnectTimeout = setTimeout(() => {
+      if (this.state !== 4 && !this.pythonProcessExited) {
+        this.connect();
+      }
+    }, 1e3);
+  }
+  async send(message) {
+    if (this.state !== 3) {
+      console.warn(`Cannot send message: not ready (current state: ${ConnectionState[this.state]})`);
       return;
     }
     try {
@@ -15046,28 +15041,39 @@ class MessageQueue extends require$$5.EventEmitter {
     }
   }
   stop() {
-    this.isStopped = true;
-    this.isListening = false;
-    this.isConnected = false;
-    this.isReady = false;
+    this.state = 4;
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
-    if (ipc.of.python) {
-      ipc.disconnect("python");
-      delete ipc.of.python;
-    }
-    try {
-      if (ipc.of.python) {
-        delete ipc.of.python;
-      }
-    } catch (e) {
-      console.error("Error during cleanup:", e);
-    }
+    this.cleanupExistingConnection();
   }
 }
-const store = new Store();
+function setupIpcHandlers(messageQueue2, store) {
+  require$$1$2.ipcMain.handle("send-to-python", async (_, message) => {
+    try {
+      await messageQueue2.send(message);
+    } catch (error2) {
+      console.error("Failed to send message to Python:", error2);
+    }
+  });
+  messageQueue2.on("message", (data) => {
+    console.log("Received message from Python:", data);
+    require$$1$2.BrowserWindow.getAllWindows().forEach((window2) => {
+      window2.webContents.send("python-message", data);
+    });
+  });
+  messageQueue2.on("connection-state-change", (state) => {
+    console.log("Connection state changed:", ConnectionState[state]);
+    require$$1$2.BrowserWindow.getAllWindows().forEach((window2) => {
+      window2.webContents.send("connection-state-change", state);
+    });
+  });
+  require$$1$2.ipcMain.handle("get-connection-state", () => {
+    return messageQueue2.getConnectionState();
+  });
+}
+new Store();
 let mainWindow = null;
 let pythonProcess = null;
 let messageQueue = null;
@@ -15121,11 +15127,16 @@ function startPythonProcess() {
     });
     pythonProcess.on("error", (error2) => {
       console.error("Failed to start Python process:", error2);
+      if (messageQueue) {
+        messageQueue.pythonExited();
+      }
     });
     pythonProcess.on("close", (code2) => {
       console.log(`Python process exited with code ${code2}`);
+      if (messageQueue) {
+        messageQueue.pythonExited();
+      }
     });
-    console.log("Python process created with PID:", pythonProcess.pid);
   } catch (error2) {
     console.error("Error starting Python process:", error2);
   }
@@ -15137,7 +15148,7 @@ require$$1$2.app.whenReady().then(async () => {
   messageQueue = new MessageQueue();
   await messageQueue.connect();
   mainWindow = await createWindow();
-  setupIpcHandlers(mainWindow, messageQueue, store);
+  setupIpcHandlers(messageQueue);
 });
 require$$1$2.app.on("window-all-closed", () => {
   console.log("Window closed, cleaning up...");
@@ -15149,33 +15160,7 @@ require$$1$2.app.on("window-all-closed", () => {
     pythonProcess.kill();
     pythonProcess = null;
   }
-  if (process.platform !== "darwin") {
-    require$$1$2.app.quit();
-  }
-});
-process.on("SIGINT", () => {
-  console.log("\nReceived SIGINT, cleaning up...");
-  if (messageQueue) {
-    messageQueue.stop();
-  }
-  if (pythonProcess) {
-    console.log("Killing Python process...");
-    pythonProcess.kill();
-    pythonProcess = null;
-  }
-  process.exit(0);
-});
-process.on("SIGTERM", () => {
-  console.log("\nReceived SIGTERM, cleaning up...");
-  if (messageQueue) {
-    messageQueue.stop();
-  }
-  if (pythonProcess) {
-    console.log("Killing Python process...");
-    pythonProcess.kill();
-    pythonProcess = null;
-  }
-  process.exit(0);
+  require$$1$2.app.quit();
 });
 require$$1$2.app.on("activate", () => {
   if (require$$1$2.BrowserWindow.getAllWindows().length === 0) {
