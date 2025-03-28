@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-
-
+import { AppSettings } from '../src/components/Settings/SettingsModal';
 
 // any components that subscribe to these events will be notified of whenever it changes
 // React UI → preload.ts → ipcHandlers.ts → messageQueue.ts → Python bridge.py
@@ -15,6 +14,18 @@ interface ElectronAPI {
   getConnectionState: () => Promise<number>;
   onConnectionStateChange: (callback: (state: number) => void) => void;
   removeConnectionStateListener: (callback: (state: number) => void) => void;
+
+  // Settings operations
+  retrieveSettings: () => Promise<{settings : AppSettings}>;
+  setSettings: (settings: Partial<AppSettings>) => Promise<{ success: boolean; error?: string }>;
+  
+  // File dialog operations
+  selectPath: (options?: { 
+    type?: 'file' | 'directory' | 'both';
+    defaultPath?: string;
+    title?: string;
+    filters?: { name: string; extensions: string[] }[];
+  }) => Promise<string | null>;
 }
 
 // exposes a set of functions to the renderer process (the React app) under the global variable electron
@@ -45,7 +56,16 @@ contextBridge.exposeInMainWorld('electron', {
   //Removes the connection state lisener 
   removeConnectionStateListener: (callback: (state: number) => void) => {
     ipcRenderer.removeListener('connection-state-change', callback);
-  }
+  },
+
+  // Retrieves all application settings at once
+  retrieveSettings: () => ipcRenderer.invoke('retrieve-settings'),
+
+  // Updates application settings
+  setSettings: (settings) => ipcRenderer.invoke('set-settings', settings),
+
+  // Opens a file or directory selection dialog
+  selectPath: (options) => ipcRenderer.invoke('select-path', options)
 } as ElectronAPI);
 
 // We'll keep the version display code if it's being used

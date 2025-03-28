@@ -89,12 +89,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSelectPath = async (key: keyof AppSettings) => {
     let path: string | null = null;
     
+    // Configure dialog options based on the setting type
     if (key === 'solverPath') {
-      path = await window.electron.selectSolverPath();
-    } else if (key === 'cfrFolder') {
-      path = await window.electron.selectFolder();
+      // For solver path, we want to select an executable file
+      path = await window.electron.selectPath({
+        type: 'file',
+        title: 'Select Solver Executable',
+        filters: [
+          { name: 'Executables', extensions: ['exe', ''] }, // Empty string for macOS/Linux executables
+        ]
+      });
+    } else if (key === 'cfrFolder' || key === 'weights' || key === 'nodeBook') {
+      // For folders, we want to select a directory
+      path = await window.electron.selectPath({
+        type: 'directory',
+        title: `Select ${key.charAt(0).toUpperCase() + key.slice(1)} Directory`
+      });
     }
-    else path = await window.electron.selectFile();
     
     if (path) {
       setFormValues(prev => ({ ...prev, [key]: path }));
@@ -158,15 +169,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <Input 
               label="Strategies Folder" 
               name="strategiesFolder"
-              value={formValues.strategiesFolder || ''}
+              value={formValues.weights || ''}
               onChange={handleChange}
               disabled
             />
-            <PathDisplay path={formValues.strategiesFolder} placeholder="No strategies folder selected" />
+            <PathDisplay path={formValues.weights} placeholder="No strategy file selected" />
           </PathContainer>
           <Button 
             variant="secondary" 
-            onClick={() => handleSelectPath('strategiesFolder')}
+            onClick={() => handleSelectPath('weights')}
           >
             Browse
           </Button>
@@ -177,15 +188,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <Input 
               label="NodeBook Folder" 
               name="nodeBookFolder"
-              value={formValues.nodeBookFolder || ''}
+              value={formValues.nodeBook || ''}
               onChange={handleChange}
               disabled
             />
-            <PathDisplay path={formValues.nodeBookFolder} placeholder="No nodeBook folder selected" />
+            <PathDisplay path={formValues.nodeBook} placeholder="No nodeBook selected" />
           </PathContainer>
           <Button 
             variant="secondary" 
-            onClick={() => handleSelectPath('nodeBookFolder')}
+            onClick={() => handleSelectPath('nodeBook')}
           >
             Browse
           </Button>

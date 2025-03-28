@@ -4,11 +4,35 @@ interface ElectronAPI {
   selectFile: (options: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>;
   selectFolder: () => Promise<string | null>;
   
+  // New unified path selection
+  selectPath: (options?: { 
+    type?: 'file' | 'directory' | 'both';
+    defaultPath?: string;
+    title?: string;
+    filters?: { name: string; extensions: string[] }[];
+  }) => Promise<string | null>;
+  
   // Store operations
   saveFolderPath: (params: { key: string; path: string }) => Promise<boolean>;
   getFolderPath: (params: { key: string }) => Promise<string | null>;
   getFilePath: (params: { key: string }) => Promise<string | null>;
   getSolverPath: () => Promise<string | null>;
+  
+  // New settings operations
+  retrieveSettings: () => Promise<{
+    solverPath: string | null;
+    cfrFolder: string | null;
+    weights: string | null;
+    nodeBook: string | null;
+    accuracy: number;
+  }>;
+  setSettings: (settings: {
+    solverPath?: string | null;
+    cfrFolder?: string | null;
+    weights?: string | null;
+    nodeBook?: string | null;
+    accuracy?: number;
+  }) => Promise<{ success: boolean; error?: string }>;
   
   // Python bridge operations
   sendSolverPath: (path: string) => void;

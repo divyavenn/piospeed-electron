@@ -14489,12 +14489,12 @@ var onetimeExports = onetime$1.exports;
       const fileExtension = options.fileExtension ? `.${options.fileExtension}` : "";
       this.path = path2.resolve(options.cwd, `${(_a2 = options.configName) !== null && _a2 !== void 0 ? _a2 : "config"}${fileExtension}`);
       const fileStore = this.store;
-      const store = Object.assign(createPlainObject(), options.defaults, fileStore);
-      this._validate(store);
+      const store2 = Object.assign(createPlainObject(), options.defaults, fileStore);
+      this._validate(store2);
       try {
-        assert.deepEqual(fileStore, store);
+        assert.deepEqual(fileStore, store2);
       } catch (_b2) {
-        this.store = store;
+        this.store = store2;
       }
       if (options.watch) {
         this._watch();
@@ -14513,8 +14513,8 @@ var onetimeExports = onetime$1.exports;
       if (__classPrivateFieldGet(this, _Conf_options, "f").accessPropertiesByDotNotation) {
         return this._get(key, defaultValue);
       }
-      const { store } = this;
-      return key in store ? store[key] : defaultValue;
+      const { store: store2 } = this;
+      return key in store2 ? store2[key] : defaultValue;
     }
     set(key, value) {
       if (typeof key !== "string" && typeof key !== "object") {
@@ -14526,13 +14526,13 @@ var onetimeExports = onetime$1.exports;
       if (this._containsReservedKey(key)) {
         throw new TypeError(`Please don't use the ${INTERNAL_KEY} key, as it's used to manage this module internal operations.`);
       }
-      const { store } = this;
+      const { store: store2 } = this;
       const set = (key2, value2) => {
         checkValueType(key2, value2);
         if (__classPrivateFieldGet(this, _Conf_options, "f").accessPropertiesByDotNotation) {
-          dotProp$1.set(store, key2, value2);
+          dotProp$1.set(store2, key2, value2);
         } else {
-          store[key2] = value2;
+          store2[key2] = value2;
         }
       };
       if (typeof key === "object") {
@@ -14543,7 +14543,7 @@ var onetimeExports = onetime$1.exports;
       } else {
         set(key, value);
       }
-      this.store = store;
+      this.store = store2;
     }
     /**
     	    Check if an item exists.
@@ -14576,13 +14576,13 @@ var onetimeExports = onetime$1.exports;
     	    @param key - The key of the item to delete.
     	    */
     delete(key) {
-      const { store } = this;
+      const { store: store2 } = this;
       if (__classPrivateFieldGet(this, _Conf_options, "f").accessPropertiesByDotNotation) {
-        dotProp$1.delete(store, key);
+        dotProp$1.delete(store2, key);
       } else {
-        delete store[key];
+        delete store2[key];
       }
-      this.store = store;
+      this.store = store2;
     }
     /**
     	    Delete all items.
@@ -14811,9 +14811,9 @@ var onetimeExports = onetime$1.exports;
       return dotProp$1.get(this.store, key, defaultValue);
     }
     _set(key, value) {
-      const { store } = this;
-      dotProp$1.set(store, key, value);
-      this.store = store;
+      const { store: store2 } = this;
+      dotProp$1.set(store2, key, value);
+      this.store = store2;
     }
   }
   exports.default = Conf2;
@@ -15049,7 +15049,7 @@ class MessageQueue extends require$$5.EventEmitter {
     this.cleanupExistingConnection();
   }
 }
-function setupIpcHandlers(messageQueue2, store) {
+function setupIpcHandlers(messageQueue2, store2) {
   require$$1$2.ipcMain.handle("send-to-python", async (_, message) => {
     try {
       await messageQueue2.send(message);
@@ -15072,8 +15072,68 @@ function setupIpcHandlers(messageQueue2, store) {
   require$$1$2.ipcMain.handle("get-connection-state", () => {
     return messageQueue2.getConnectionState();
   });
+  require$$1$2.ipcMain.handle("set-settings", (_, settings) => {
+    try {
+      if (settings.solverPath !== void 0) {
+        store2.set("solverPath", settings.solverPath);
+      }
+      if (settings.cfrFolder !== void 0) {
+        store2.set("cfrFolder", settings.cfrFolder);
+      }
+      if (settings.weights !== void 0) {
+        store2.set("weights", settings.weights);
+      }
+      if (settings.nodeBook !== void 0) {
+        store2.set("nodeBook", settings.nodeBook);
+      }
+      if (settings.accuracy !== void 0) {
+        store2.set("accuracy", settings.accuracy);
+      }
+      return { success: true };
+    } catch (error2) {
+      console.error("Failed to save settings:", error2);
+      return { success: false, error: String(error2) };
+    }
+  });
+  require$$1$2.ipcMain.handle("retrieve-settings", () => {
+    return {
+      solverPath: store2.get("solverPath") || null,
+      cfrFolder: store2.get("cfrFolder") || null,
+      weights: store2.get("weights") || null,
+      nodeBook: store2.get("nodeBook") || null,
+      accuracy: store2.get("accuracy") || 0.02
+    };
+  });
+  require$$1$2.ipcMain.handle("select-path", async (_, options = {}) => {
+    const mainWindow2 = require$$1$2.BrowserWindow.getFocusedWindow();
+    if (!mainWindow2) {
+      throw new Error("No focused window found");
+    }
+    const properties2 = [];
+    switch (options.type || "file") {
+      case "file":
+        properties2.push("openFile");
+        break;
+      case "directory":
+        properties2.push("openDirectory");
+        break;
+      case "both":
+        properties2.push("openFile", "openDirectory");
+        break;
+    }
+    const { canceled, filePaths } = await require$$1$2.dialog.showOpenDialog(mainWindow2, {
+      properties: properties2,
+      defaultPath: options.defaultPath,
+      title: options.title,
+      filters: options.filters
+    });
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+    return filePaths[0];
+  });
 }
-new Store();
+const store = new Store();
 let mainWindow = null;
 let pythonProcess = null;
 let messageQueue = null;
@@ -15148,7 +15208,7 @@ require$$1$2.app.whenReady().then(async () => {
   messageQueue = new MessageQueue();
   await messageQueue.connect();
   mainWindow = await createWindow();
-  setupIpcHandlers(messageQueue);
+  setupIpcHandlers(messageQueue, store);
 });
 require$$1$2.app.on("window-all-closed", () => {
   console.log("Window closed, cleaning up...");

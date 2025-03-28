@@ -20,7 +20,13 @@ electron.contextBridge.exposeInMainWorld("electron", {
   //Removes the connection state lisener 
   removeConnectionStateListener: (callback) => {
     electron.ipcRenderer.removeListener("connection-state-change", callback);
-  }
+  },
+  // Retrieves all application settings at once
+  retrieveSettings: () => electron.ipcRenderer.invoke("retrieve-settings"),
+  // Updates application settings
+  setSettings: (settings) => electron.ipcRenderer.invoke("set-settings", settings),
+  // Opens a file or directory selection dialog
+  selectPath: (options) => electron.ipcRenderer.invoke("select-path", options)
 });
 window.addEventListener("DOMContentLoaded", () => {
   const replaceText = (selector, text) => {
