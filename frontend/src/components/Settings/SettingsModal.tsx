@@ -111,7 +111,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       setFormValues(prev => ({ ...prev, [key]: path }));
     }
   };
-
   const handleSave = () => {
     onSaveSettings(formValues);
     onClose();

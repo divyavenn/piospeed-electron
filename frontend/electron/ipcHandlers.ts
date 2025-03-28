@@ -87,28 +87,10 @@ export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void
    */
   ipcMain.handle('set-settings', (_, settings: Partial<AppSettings>) => {
     try {
-      // Update each setting if provided
-      if (settings.solverPath !== undefined) {
-        store.set('solverPath', settings.solverPath);
-      }
-      
-      if (settings.cfrFolder !== undefined) {
-        store.set('cfrFolder', settings.cfrFolder);
-      }
-      
-      if (settings.weights !== undefined) {
-        store.set('weights', settings.weights);
-      }
-      
-      if (settings.nodeBook !== undefined) {
-        store.set('nodeBook', settings.nodeBook);
-      }
-      
-      if (settings.accuracy !== undefined) {
-        store.set('accuracy', settings.accuracy);
-      }
-      
-      return { success: true };
+      Object.entries(settings).forEach(([key, value]) => {
+        store.set(key as keyof AppSettings, value);
+      });
+      return { success: true, message: 'Settings updated successfully' };
     } catch (error) {
       console.error('Failed to save settings:', error);
       return { success: false, error: String(error) };
@@ -157,7 +139,7 @@ export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void
     }
     
     // Set properties based on type
-    const properties: Array<string> = [];
+    const properties: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles' | 'createDirectory' | 'promptToCreate' | 'noResolveAliases' | 'treatPackageAsDirectory' | 'dontAddToRecent'> = [];
     
     switch (options.type || 'file') {
       case 'file':

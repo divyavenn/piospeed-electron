@@ -20,6 +20,12 @@ const theme = {
     lg: '24px',
     xl: '32px'
   },
+  sizes: {
+    small: '0.875rem',
+    normal: '1rem',
+    large: '1.25rem',
+    xlarge: '1.5rem'
+  },
   typography: {
     h1: {
       fontSize: '2.5rem',

@@ -15074,22 +15074,10 @@ function setupIpcHandlers(messageQueue2, store2) {
   });
   require$$1$2.ipcMain.handle("set-settings", (_, settings) => {
     try {
-      if (settings.solverPath !== void 0) {
-        store2.set("solverPath", settings.solverPath);
-      }
-      if (settings.cfrFolder !== void 0) {
-        store2.set("cfrFolder", settings.cfrFolder);
-      }
-      if (settings.weights !== void 0) {
-        store2.set("weights", settings.weights);
-      }
-      if (settings.nodeBook !== void 0) {
-        store2.set("nodeBook", settings.nodeBook);
-      }
-      if (settings.accuracy !== void 0) {
-        store2.set("accuracy", settings.accuracy);
-      }
-      return { success: true };
+      Object.entries(settings).forEach(([key, value]) => {
+        store2.set(key, value);
+      });
+      return { success: true, message: "Settings updated successfully" };
     } catch (error2) {
       console.error("Failed to save settings:", error2);
       return { success: false, error: String(error2) };
