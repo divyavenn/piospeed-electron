@@ -2,8 +2,8 @@ import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import Store from 'electron-store';
 import { ChildProcess, spawn } from 'child_process';
-import {setupIpcHandlers} from '../src/ipcHandlers';
-import { MessageQueue } from '../src/messageQueue';
+import {setupIpcHandlers} from './ipcHandlers';
+import { MessageQueue } from './messageQueue';
 
 // Initialize the store for user preferences
 const store = new Store();
@@ -91,8 +91,6 @@ function startPythonProcess() {
       console.log(`Python process exited with code ${code}`);
     });
 
-    // Log if the process was created successfully
-    console.log('Python process created with PID:', pythonProcess.pid);
   } catch (error) {
     console.error('Error starting Python process:', error);
   }
@@ -116,7 +114,7 @@ app.whenReady().then(async () => {
   mainWindow = await createWindow();
 
   // Set up IPC handlers after window is created
-  setupIpcHandlers(mainWindow, messageQueue, store);
+  setupIpcHandlers(messageQueue, store);
 });
 
 // Handle window close
@@ -141,32 +139,6 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Handle process termination signals
-process.on('SIGINT', () => {
-  console.log('\nReceived SIGINT, cleaning up...');
-  if (messageQueue) {
-    messageQueue.stop();
-  }
-  if (pythonProcess) {
-    console.log('Killing Python process...');
-    pythonProcess.kill();
-    pythonProcess = null;
-  }
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('\nReceived SIGTERM, cleaning up...');
-  if (messageQueue) {
-    messageQueue.stop();
-  }
-  if (pythonProcess) {
-    console.log('Killing Python process...');
-    pythonProcess.kill();
-    pythonProcess = null;
-  }
-  process.exit(0);
-});
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
