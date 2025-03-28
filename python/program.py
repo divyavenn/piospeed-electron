@@ -3,7 +3,7 @@ from menu import PluginCommands, Command
 from interface import Interface
 from treeops import TreeOperator
 from inputs import WeightsFile, BoardFile, Board, InputMetadata
-from stringFunc import removeExtension, timestamp, toFloat, parseTreeInfoToMap, parseSettingsToMap, get_file_name_from_path
+from stringFunc import removeExtension, timestamp, toFloat, get_file_name_from_path
 from SolverConnection.solver import Solver
 from solverCommands import SolverCommmand
 from typing import Callable

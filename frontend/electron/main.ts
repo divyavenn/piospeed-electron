@@ -141,6 +141,33 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Handle process termination signals
+process.on('SIGINT', () => {
+  console.log('\nReceived SIGINT, cleaning up...');
+  if (messageQueue) {
+    messageQueue.stop();
+  }
+  if (pythonProcess) {
+    console.log('Killing Python process...');
+    pythonProcess.kill();
+    pythonProcess = null;
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\nReceived SIGTERM, cleaning up...');
+  if (messageQueue) {
+    messageQueue.stop();
+  }
+  if (pythonProcess) {
+    console.log('Killing Python process...');
+    pythonProcess.kill();
+    pythonProcess = null;
+  }
+  process.exit(0);
+});
+
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();

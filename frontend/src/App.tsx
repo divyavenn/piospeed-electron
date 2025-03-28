@@ -82,14 +82,13 @@ const RecoilApp: React.FC = () => {
       }
     };
 
-    // Listen for Python ready message
+    // Listen for Python messages
     const handlePythonMessage = (data: any) => {
-      if (data.status === 'ready') {
+      console.log('Received message from Python:', data);
+      
+      if (data.message === 'ready') {
         console.log('Python is ready, checking solver path...');
         checkSolverPath();
-      }
-      else {
-        console.log('Received message from Python:', data);
       }
     };
 
@@ -365,4 +364,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App; 
+export default App;

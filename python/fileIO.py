@@ -74,20 +74,14 @@ def getExtension(file:str) -> str:
         return i[len(i) - 1]
 
 
-# Use os.path.join for cross-platform path handling with correct directory structure
-mapping_path = os.environ.get('PIOSPEED_MAPPINGS_PATH', '')
-if mapping_path:
-    hand_index_map_path = os.path.join(mapping_path, 'handIndexMap.json')
-else:
-    hand_index_map_path = os.path.join('mappings', 'handIndexMap.json')
-    
+hand_index_map_path = os.path.join(os.getcwd(), 'mappings', 'handIndexMap.json')
 try:
     hand_index_map = JSONtoMap(hand_index_map_path, [])
     hands = list(hand_index_map.keys())
 except FileNotFoundError:
     print(json.dumps({
         "type": "error",
-        "data": f"Could not find hand index map at: {hand_index_map_path}. Current directory: {os.getcwd()}"
+        "data": f"Could not find hand index map at: {hand_index_map_path}."
     }))
     hand_index_map = {}
     hands = []
@@ -97,8 +91,8 @@ class Tests(unittest.TestCase):
     def testGetExtension(self):
         self.assertEqual(getExtension("test.csv"), "csv")
         self.assertEqual(getExtension("test"), None)
-        self.assertEqual(getExtension("C:\PioSOLVER\PioSOLVER3-pro.exe"), "exe")
-        self.assertEqual(getExtension("C:\PioSOLVER.2.0\PioSOLVER3-pro.exe"), "exe")
+        self.assertEqual(getExtension("C:\\PioSOLVER\\PioSOLVER3-pro.exe"), "exe")
+        self.assertEqual(getExtension("C:\\PioSOLVER.2.0\\PioSOLVER3-pro.exe"), "exe")
         
     def testCheckPath(self):
         self.assertEqual(checkPath("test.csv", ".csv"), "test.csv")

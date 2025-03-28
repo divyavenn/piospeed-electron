@@ -1,7 +1,6 @@
 from __future__ import annotations
 from enum import Enum
 from inputs import Input, FileInput, FolderOf, WeightsFile, BoardFile, Extension, InputType, InputMetadata
-from global_var import cfr_folder, nodeBook_folder, strategies_folder
 
 import unittest
 

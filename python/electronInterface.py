@@ -3,7 +3,7 @@ from bridge import MessageQueue
 import asyncio
 import json
 from menu import Command, PluginCommands
-from inputs import InputType, Input, InputMetadata
+from inputs import InputMetadata
 
 class ElectronInterface(Interface):
     
@@ -17,7 +17,7 @@ class ElectronInterface(Interface):
     async def getSolverPath(self) -> str:
         # Request solver path from Electron settings
         request = json.dumps({"type": "get_solver_path"})
-        response = await self.bridge.send("settings_request", request, expect_response=True)
+        response = await self.bridge.send(request)
         
         if response and response.get('type') == 'solver_path':
             self.solver_path = response['path']
@@ -49,12 +49,12 @@ class ElectronInterface(Interface):
         
     async def notify(self, message) -> None:
         # Send message back to React via electron_bridge
-        await self.bridge.send("notification", message, expect_response=False)
+        await self.bridge.send(message)
 
     async def getText(self, metadata) -> str:
         while True:
             request = json.dumps({"type": "text", "message": metadata.prompt})
-            await self.bridge.send("text_input", request, expect_response=True)
+            await self.bridge.send(request)
             response = await self.bridge.receive()
             
             try:
@@ -66,7 +66,7 @@ class ElectronInterface(Interface):
     async def getFilePath(self, metadata : InputMetadata) -> str:
         while True:
             request = json.dumps({"type": "filepath", "message": metadata.prompt})
-            await self.bridge.send("file_input", request, expect_response=True)
+            await self.bridge.send(request)
             response = await self.bridge.receive()
             
             try:
@@ -78,7 +78,7 @@ class ElectronInterface(Interface):
     async def getFolder(self, metadata : InputMetadata) -> str:
         while True:
             request = json.dumps({"type": "folder", "message": metadata.prompt})
-            await self.bridge.send("folder_input", request, expect_response=True)
+            await self.bridge.send(request)
             response = await self.bridge.receive()
             
             try:
@@ -94,4 +94,3 @@ class ElectronInterface(Interface):
         print("Starting bridge")
         # Simply calls the run method of the MessageQueue
         await self.bridge.run()
-        

@@ -24,35 +24,82 @@ export class MessageQueue extends EventEmitter {
     super();
     this.isListening = false;
     ipc.config.id = 'electron';
-    ipc.config.retry = 1500;
+    ipc.config.retry = 0;
     ipc.config.silent = false;
     ipc.config.socketRoot = '/tmp/';
     ipc.config.appspace = '';
+    ipc.config.stopRetrying = true;
+    ipc.config.maxRetries = 0;
+    ipc.config.retry = 0;
+    ipc.config.retryTimer = 0;
   }
 
   async connect(): Promise<void> {
     if (this.isConnected || this.isStopped) return;
 
-    return new Promise((resolve, reject) => {
-      ipc.connectTo('python', this.SOCKET_NAME, () => {
-        console.log("Connected to Python process");
-        this.isConnected = true;
-        this.reconnectAttempts = 0;
-        this.startListening();
-        resolve();
+    const tryConnect = (): Promise<void> =>
+      new Promise((resolve, reject) => {
+        if (this.isStopped) {
+          reject(new Error('Connection stopped'));
+          return;
+        }
+
+        // Remove any existing connection first
+        if (ipc.of.python) {
+          ipc.disconnect('python');
+          delete ipc.of.python;
+        }
+
+        // Set up connection with custom retry handling
+        ipc.connectTo('python', this.SOCKET_NAME, () => {
+          if (this.isStopped) {
+            ipc.disconnect('python');
+            reject(new Error('Connection stopped'));
+            return;
+          }
+          console.log("Connected to Python process");
+          this.isConnected = true;
+          this.reconnectAttempts = 0;
+          this.startListening();
+          resolve();
+        });
+
+        // Override node-ipc's error handling
+        ipc.of.python.on('error', (error: Error) => {
+          console.error("Connection error:", error);
+          if (!this.isStopped) {
+            reject(error);
+          }
+        });
+
+        // Override node-ipc's disconnect handling
+        ipc.of.python.on('disconnect', () => {
+          console.log("Disconnected from Python process");
+          if (!this.isStopped) {
+            this.handleDisconnect();
+          }
+        });
       });
 
-      ipc.of.python.on('error', (error: Error) => {
-        console.error("Connection error:", error);
-        this.handleDisconnect();
-        reject(error);
-      });
-
-      ipc.of.python.on('disconnect', () => {
-        console.log("Disconnected from Python process");
-        this.handleDisconnect();
-      });
-    });
+    try {
+      await tryConnect();
+    } catch (err) {
+      if (this.isStopped) return;
+      
+      this.reconnectAttempts++;
+      console.warn(`Reconnect attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} failed.`);
+      
+      if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
+        console.error("Max reconnection attempts reached. Giving up.");
+        this.stop();
+      } else {
+        // Wait before next attempt
+        await new Promise(res => setTimeout(res, 1000));
+        if (!this.isStopped) {
+          this.handleDisconnect();
+        }
+      }
+    }
   }
 
   private handleDisconnect() {
@@ -62,9 +109,6 @@ export class MessageQueue extends EventEmitter {
     this.isReady = false;
     
     if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
-      this.reconnectAttempts++;
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})...`);
-      
       // Clear any existing timeout
       if (this.reconnectTimeout) {
         clearTimeout(this.reconnectTimeout);
@@ -129,8 +173,19 @@ export class MessageQueue extends EventEmitter {
       this.reconnectTimeout = null;
     }
     
+    // Force disconnect from node-ipc
     if (ipc.of.python) {
       ipc.disconnect('python');
+      delete ipc.of.python;
+    }
+
+    // Additional cleanup to ensure no lingering connections
+    try {
+      if (ipc.of.python) {
+        delete ipc.of.python;
+      }
+    } catch (e) {
+      console.error('Error during cleanup:', e);
     }
   }
 }

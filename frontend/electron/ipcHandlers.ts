@@ -1,3 +1,5 @@
+import {BrowserWindow } from 'electron';
+
 export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void {
   // Handle Python messages
   messageQueue.on('message', (data: any) => {

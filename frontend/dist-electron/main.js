@@ -14931,16 +14931,33 @@ class MessageQueue extends require$$5.EventEmitter {
     this.reconnectTimeout = null;
     this.isListening = false;
     ipc.config.id = "electron";
-    ipc.config.retry = 1500;
+    ipc.config.retry = 0;
     ipc.config.silent = false;
     ipc.config.socketRoot = "/tmp/";
     ipc.config.appspace = "";
+    ipc.config.stopRetrying = true;
+    ipc.config.maxRetries = 0;
+    ipc.config.retry = 0;
+    ipc.config.retryTimer = 0;
   }
   async connect() {
     if (this.isConnected || this.isStopped)
       return;
-    return new Promise((resolve2, reject) => {
+    const tryConnect = () => new Promise((resolve2, reject) => {
+      if (this.isStopped) {
+        reject(new Error("Connection stopped"));
+        return;
+      }
+      if (ipc.of.python) {
+        ipc.disconnect("python");
+        delete ipc.of.python;
+      }
       ipc.connectTo("python", this.SOCKET_NAME, () => {
+        if (this.isStopped) {
+          ipc.disconnect("python");
+          reject(new Error("Connection stopped"));
+          return;
+        }
         console.log("Connected to Python process");
         this.isConnected = true;
         this.reconnectAttempts = 0;
@@ -14949,14 +14966,34 @@ class MessageQueue extends require$$5.EventEmitter {
       });
       ipc.of.python.on("error", (error2) => {
         console.error("Connection error:", error2);
-        this.handleDisconnect();
-        reject(error2);
+        if (!this.isStopped) {
+          reject(error2);
+        }
       });
       ipc.of.python.on("disconnect", () => {
         console.log("Disconnected from Python process");
-        this.handleDisconnect();
+        if (!this.isStopped) {
+          this.handleDisconnect();
+        }
       });
     });
+    try {
+      await tryConnect();
+    } catch (err) {
+      if (this.isStopped)
+        return;
+      this.reconnectAttempts++;
+      console.warn(`Reconnect attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} failed.`);
+      if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
+        console.error("Max reconnection attempts reached. Giving up.");
+        this.stop();
+      } else {
+        await new Promise((res) => setTimeout(res, 1e3));
+        if (!this.isStopped) {
+          this.handleDisconnect();
+        }
+      }
+    }
   }
   handleDisconnect() {
     if (this.isStopped)
@@ -14964,8 +15001,6 @@ class MessageQueue extends require$$5.EventEmitter {
     this.isConnected = false;
     this.isReady = false;
     if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
-      this.reconnectAttempts++;
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})...`);
       if (this.reconnectTimeout) {
         clearTimeout(this.reconnectTimeout);
       }
@@ -15021,6 +15056,14 @@ class MessageQueue extends require$$5.EventEmitter {
     }
     if (ipc.of.python) {
       ipc.disconnect("python");
+      delete ipc.of.python;
+    }
+    try {
+      if (ipc.of.python) {
+        delete ipc.of.python;
+      }
+    } catch (e) {
+      console.error("Error during cleanup:", e);
     }
   }
 }
@@ -15089,11 +15132,12 @@ function startPythonProcess() {
 }
 require$$1$2.app.whenReady().then(async () => {
   console.log("App ready");
+  startPythonProcess();
+  await new Promise((resolve2) => setTimeout(resolve2, 1e3));
   messageQueue = new MessageQueue();
   await messageQueue.connect();
   mainWindow = await createWindow();
   setupIpcHandlers(mainWindow, messageQueue, store);
-  startPythonProcess();
 });
 require$$1$2.app.on("window-all-closed", () => {
   console.log("Window closed, cleaning up...");
@@ -15108,6 +15152,30 @@ require$$1$2.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     require$$1$2.app.quit();
   }
+});
+process.on("SIGINT", () => {
+  console.log("\nReceived SIGINT, cleaning up...");
+  if (messageQueue) {
+    messageQueue.stop();
+  }
+  if (pythonProcess) {
+    console.log("Killing Python process...");
+    pythonProcess.kill();
+    pythonProcess = null;
+  }
+  process.exit(0);
+});
+process.on("SIGTERM", () => {
+  console.log("\nReceived SIGTERM, cleaning up...");
+  if (messageQueue) {
+    messageQueue.stop();
+  }
+  if (pythonProcess) {
+    console.log("Killing Python process...");
+    pythonProcess.kill();
+    pythonProcess = null;
+  }
+  process.exit(0);
 });
 require$$1$2.app.on("activate", () => {
   if (require$$1$2.BrowserWindow.getAllWindows().length === 0) {

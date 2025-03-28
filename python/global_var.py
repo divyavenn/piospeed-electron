@@ -1,34 +1,4 @@
 import os
-import sys
-import json
-
-# Get mappings directory from environment variable or use default
-mappingsPath = os.environ.get('PIOSPEED_MAPPINGS_PATH')
-
-# Try different fallback paths if environment variable is not set or path doesn't exist
-if not mappingsPath or not os.path.exists(mappingsPath):
-    # 1. Try relative to this file
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    possible_paths = [
-        # Inside frontend/python structure
-        os.path.join(os.path.dirname(current_dir), 'public', 'mappings'),
-        # Original project structure
-        os.path.join(os.path.dirname(os.path.dirname(current_dir)), 'mappings')
-    ]
-    
-    for path in possible_paths:
-        if os.path.exists(path):
-            mappingsPath = path
-            break
-    
-    # If we still don't have a valid path, use the first one anyway and let it fail later
-    if not mappingsPath or not os.path.exists(mappingsPath):
-        mappingsPath = possible_paths[0]
-        # Log warning about missing mappings
-        print(json.dumps({
-            "type": "warning", 
-            "message": f"Could not find mappings directory. Tried: {', '.join(possible_paths)}"
-        }), flush=True)
 
 # Default solver path - this will be overridden by the path provided by the user
 solverPath = None  # Will be set via config or UI
