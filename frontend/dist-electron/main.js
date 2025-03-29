@@ -14905,9 +14905,13 @@ class MessageQueue extends require$$5.EventEmitter {
     ipc.config.silent = false;
     ipc.config.socketRoot = "/tmp/";
     ipc.config.appspace = "";
-    ipc.config.stopRetrying = true;
-    ipc.config.maxRetries = 0;
-    ipc.config.retryTimer = 0;
+    ipc.config.stopRetrying = false;
+    ipc.config.maxRetries = 3;
+    ipc.config.retryTimer = 1e3;
+    ipc.config.rawBuffer = true;
+    ipc.config.encoding = "utf8";
+    ipc.config.maxConnections = 1;
+    ipc.config.sync = false;
   }
   // Add getter and setter for state to emit events when state changes
   get state() {
@@ -14980,14 +14984,30 @@ class MessageQueue extends require$$5.EventEmitter {
     }
   }
   setupListeners() {
-    ipc.of.python.on("message", (data) => {
-      if (data.type === "ready") {
-        console.log("Python process is ready");
-        this.state = 3;
-        this.emit("ready");
-      } else {
-        this.emit("message", data);
+    ipc.of.python.on("data", (buffer) => {
+      try {
+        const messageStr = buffer.toString().trim();
+        if (!messageStr)
+          return;
+        const messages = messageStr.split("\n").filter((msg) => msg.trim());
+        for (const msg of messages) {
+          try {
+            const message = JSON.parse(msg);
+            console.log("Parsed message:", message);
+            if (message.type === "ready") {
+              this.state = 3;
+            }
+            this.emit("message", message);
+          } catch (e) {
+            console.error("Failed to parse message part:", msg, e);
+          }
+        }
+      } catch (error2) {
+        console.error("Error processing socket data:", error2);
       }
+    });
+    ipc.of.python.on("connect", () => {
+      console.log("Socket connected to Python");
     });
     ipc.of.python.on("error", (error2) => {
       console.error("Connection error:", error2);
@@ -15000,6 +15020,9 @@ class MessageQueue extends require$$5.EventEmitter {
       if (this.state !== 4 && !this.pythonProcessExited) {
         this.handleDisconnect();
       }
+    });
+    ipc.of.python.on("socket.error", (error2) => {
+      console.error("Socket error:", error2);
     });
   }
   handleDisconnect() {

@@ -35,9 +35,13 @@ export class MessageQueue extends EventEmitter {
     ipc.config.silent = false;
     ipc.config.socketRoot = '/tmp/';
     ipc.config.appspace = '';
-    ipc.config.stopRetrying = true;
-    ipc.config.maxRetries = 0;
-    ipc.config.retryTimer = 0;
+    ipc.config.stopRetrying = false;  // Allow retries
+    ipc.config.maxRetries = 3;        // Limit retries to 3
+    ipc.config.retryTimer = 1000;     // Retry every second
+    ipc.config.rawBuffer = true;      // Enable raw buffer mode
+    ipc.config.encoding = 'utf8';     // Ensure consistent encoding
+    ipc.config.maxConnections = 1;    // Only need one connection
+    ipc.config.sync = false;          // Async mode
   }
 
   // Add getter and setter for state to emit events when state changes
@@ -129,15 +133,37 @@ export class MessageQueue extends EventEmitter {
   }
 
   private setupListeners(): void {
-    // Message handler
-    ipc.of.python.on('message', (data: Message) => {
-      if (data.type === 'ready') {
-        console.log('Python process is ready');
-        this.state = ConnectionState.READY;
-        this.emit('ready');
-      } else {
-        this.emit('message', data);
+    // Socket data handler for raw data
+    ipc.of.python.on('data', (buffer: Buffer) => {
+      try {
+        const messageStr = buffer.toString().trim();
+        if (!messageStr) return;
+      
+        
+        const messages = messageStr.split('\n').filter(msg => msg.trim());
+        
+        for (const msg of messages) {
+          try {
+            const message = JSON.parse(msg);
+            console.log('Parsed message:', message);
+            
+            if (message.type === 'ready') {
+              this.state = ConnectionState.READY;
+            }
+            
+            this.emit('message', message);
+          } catch (e) {
+            console.error('Failed to parse message part:', msg, e);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing socket data:', error);
       }
+    });
+
+    // Socket connect handler
+    ipc.of.python.on('connect', () => {
+      console.log('Socket connected to Python');
     });
 
     // Error handler
@@ -154,6 +180,11 @@ export class MessageQueue extends EventEmitter {
       if (this.state !== ConnectionState.STOPPED && !this.pythonProcessExited) {
         this.handleDisconnect();
       }
+    });
+
+    // Socket error handler
+    ipc.of.python.on('socket.error', (error: Error) => {
+      console.error('Socket error:', error);
     });
   }
 

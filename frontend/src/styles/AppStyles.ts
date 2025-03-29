@@ -251,6 +251,7 @@ export const ExecuteButton = styled(Button)`
   margin-top: 100px;
   margin-bottom: ${({ theme }) => theme.spacing.xxl};
   width: 100%;
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
   max-width: 180px;
   animation: ${glowRipple} 2s infinite cubic-bezier(0.36, 0.11, 0.89, 0.32);
   

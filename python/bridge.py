@@ -25,7 +25,7 @@ class MessageQueue:
         self.is_connected = False
         self.connection_event = asyncio.Event()
         self.loop = asyncio.get_event_loop()
-        print(f"........connecting to socket : {socket_path}")
+        print("........connecting to socket : " + socket_path)
 
 
     async def start(self):
@@ -39,8 +39,9 @@ class MessageQueue:
             await self.connection_event.wait()
             # send message to client that the server is ready
             await self.send(Message("ready", None))
+            print("........Pinged client.")
         except Exception as e:
-            print(f"Error starting server: {e}")
+            print("Error starting server: " + str(e))
             raise
 
     async def prevent_multiple_connections(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -54,7 +55,7 @@ class MessageQueue:
         self.current_writer = writer
         self.is_connected = True
         self.connection_event.set()
-        print(f"New client connected: {id(writer)}")
+        print("New client connected: " + str(id(writer)))
 
     async def receive(self):
         if not self.current_writer:
@@ -69,15 +70,29 @@ class MessageQueue:
             return
 
         try:
+            # Format message as expected by node-ipc
             json_message = {
                 "type": message.type,
                 "data": message.data
             }
+            
+            # Debug the message being sent
+            print("Sending message: " + str(json_message))
+            
+            # Ensure proper message framing with a single newline
+            # This is critical for Node IPC to parse the message correctly
             data = json.dumps(json_message) + "\n"
-            self.current_writer.write(data.encode())
+            
+            # Send as UTF-8 encoded bytes
+            self.current_writer.write(data.encode('utf-8'))
             await self.current_writer.drain()
+            
+            # Add a small delay to ensure message is fully sent
+            await asyncio.sleep(0.1)
+            
+            print("Message sent successfully")
         except Exception as e:
-            print(f"Error sending message: {e}")
+            print("Error sending message: " + str(e))
             self.current_client = None
             self.current_writer = None
             self.is_connected = False
@@ -88,7 +103,7 @@ class MessageQueue:
             await asyncio.create_task(self.start())
             
         except Exception as e:
-            print(f"Error in message loop: {e}")
+            print("Error in message loop: " + str(e))
         finally:
             await self.cleanup()
 
@@ -102,4 +117,4 @@ class MessageQueue:
             if os.path.exists(self.socket_path):
                 os.unlink(self.socket_path)
         except Exception as e:
-            print(f"Error during cleanup: {e}")
+            print("Error during cleanup: " + str(e))

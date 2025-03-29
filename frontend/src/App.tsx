@@ -63,33 +63,14 @@ const RecoilApp: React.FC = () => {
   const [saveType, setSaveType] = useRecoilState(saveTypeState);
   const [nodelock, setNodelock] = useRecoilState(nodelockState);
 
-  // Check solver path on component mount and after Python is ready
+  // Check solver path on component mount
   useEffect(() => {
-    const checkSolverPath = async () => {
-      try {
-        const path = await window.electron.selectSolverPath();
-        if (!path) {
-          setError('Please set solver executable path in settings.');
-          setIsLoading(false);
-          return;
-        }
-        setSolverPath(path);
-        window.electron.sendSolverPath(path);
-        setIsLoading(false);
-      } catch (err) {
-        setError('Failed to load solver path. Please check settings.');
-        setIsLoading(false);
-      }
-    };
-
-    // Listen for Python messages
+    // Set loading to false immediately
+    setIsLoading(false);
+    
+    // Still listen for Python messages for other functionality
     const handlePythonMessage = (data: any) => {
       console.log('Received message from Python:', data);
-      
-      if (data.message === 'ready') {
-        console.log('Python is ready, checking solver path...');
-        checkSolverPath();
-      }
     };
 
     window.electron.onPythonMessage(handlePythonMessage);
@@ -100,10 +81,8 @@ const RecoilApp: React.FC = () => {
     };
   }, []);
 
-  // Control the animation sequence
+  // Start animation immediately, don't wait for Python to be ready
   useEffect(() => {
-    if (isLoading) return;
-    
     // Step 1: Show intro animation in center of screen
     setAnimation('intro');
     
@@ -121,17 +100,8 @@ const RecoilApp: React.FC = () => {
       clearTimeout(moveUpTimer);
       clearTimeout(showCommandsTimer);
     };
-  }, [isLoading, setAnimation]);
+  }, [setAnimation]);
 
-  // If still loading the settings, show a loading screen
-  if (isLoading) {
-    return (
-      <LoadingScreen>
-        <Spinner />
-        <DescriptionText>Loading...</DescriptionText>
-      </LoadingScreen>
-    );
-  }
 
   const executeCommand = () => {
     if (currentCommand === CommandMap.NONE) return;

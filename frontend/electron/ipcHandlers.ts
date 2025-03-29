@@ -40,7 +40,6 @@ export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void
   messageQueue.on('message', (data: any) => {
     console.log('Received message from Python:', data);
 
-    
     BrowserWindow.getAllWindows().forEach(window => {
       window.webContents.send('python-message', data);
     });

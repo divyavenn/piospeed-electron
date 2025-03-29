@@ -112,6 +112,8 @@ app.whenReady().then(async () => {
   // Wait for Python process to create the socket
   await new Promise(resolve => setTimeout(resolve, 1000));
   
+
+  
   // Create and connect MessageQueue
   messageQueue = new MessageQueue();
   await messageQueue.connect();
@@ -119,8 +121,9 @@ app.whenReady().then(async () => {
   // Create the window
   mainWindow = await createWindow();
 
-  // Set up IPC handlers after window is created
+  // Set up IPC handlers
   setupIpcHandlers(messageQueue, store);
+  
 });
 
 // Handle window close
