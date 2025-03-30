@@ -18,6 +18,9 @@ interface ElectronAPI {
   getFilePath: (params: { key: string }) => Promise<string | null>;
   getSolverPath: () => Promise<string | null>;
   
+  // Error dialog
+  showError: (message: string) => Promise<void>;
+  
   // New settings operations
   retrieveSettings: () => Promise<{
     solverPath: string | null;

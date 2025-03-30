@@ -1,25 +1,40 @@
 from __future__ import annotations
 from menu import PluginCommands, Command
-from interface import Interface
 from treeops import TreeOperator
 from inputs import WeightsFile, BoardFile, Board, InputMetadata
 from stringFunc import removeExtension, timestamp, toFloat, get_file_name_from_path
 from SolverConnection.solver import Solver
 from solverCommands import SolverCommmand
-from typing import Callable
+from typing import Callable, Any, Optional
 from fileIO import addRowstoCSV
 import unittest
 import shutil
+import asyncio
 
 
 consoleLog = True
 
 class Program:
     
-    def __init__(self, connection : Solver, interface : Interface):
+    def __init__(self, connection: Solver, notify_func: Callable[[str], None], get_input_func: Optional[Callable] = None):
+        """
+        Initialize the Program with a solver connection and notification function
+        
+        Args:
+            connection: The Solver connection
+            notify_func: Function to notify the UI with messages
+            get_input_func: Function to get inputs from the UI (optional)
+        """
         self.connection = connection
         self.command = SolverCommmand(connection)
-        self.interface = interface
+        # Replace interface with direct function calls
+        self.notify = notify_func
+        self.get_input = get_input_func
+        
+        # Add pending command and arguments
+        self.pending_command = None
+        self.pending_args = None
+        
         #maintain a mapping of the commands to the functions that run them
         self.commandDispatcher : dict[Command, Callable[[list[str]], None]] = { 
             PluginCommands.NODELOCK_SOLVE: self.nodelock_solve,
@@ -52,25 +67,19 @@ class Program:
             pio.load_tree(folder + "\\" + cfr)
             pio.saveTree([folder + "\\" + cfr, save_type])
             pio.run_until("free_tree", "free_tree ok!")
-            self.interface.notify("Resaved " + cfr + ".")
+            self.notify("Resaved " + cfr + ".")
         
     # new accuracy of solverq
     def update_accuracy(self, args : list[str]):
         self.connection.accuracy = toFloat(args[0])
         
-    async def commandRun(self):
-        inputtedCommand = await self.interface.getCommand()
-        inputtedArgs = await self.interface.getCommandArgs(inputtedCommand.value)
-        if inputtedArgs is None:
+    async def commandRun(self, inputtedCommand : Command = None, inputtedArgs : list[str] = None):
+        await self.commandDispatcher[inputtedCommand](inputtedArgs)
+        if (inputtedCommand != PluginCommands.END):
             await self.commandRun()
-        # runs the function in the program class associated with that command
         else:
-            await self.commandDispatcher[inputtedCommand](inputtedArgs)
-            if (inputtedCommand != PluginCommands.END):
-                await self.commandRun()
-            else:
-                await self.end([])
-    
+            await self.end([])
+        
     async def tryFunction(self, func, args : list):
         try:
             #command not meant to have any inputs
@@ -83,7 +92,7 @@ class Program:
             else:
                 return await func(args)
         except Exception as e:
-            await self.interface.notify(str(e))
+            await self.notify(str(e))
             return None
         
     # arg[0] = nodeID
@@ -157,7 +166,7 @@ class Program:
                     
                 if loaded:
                     if solveFirst:
-                        self.interface.notify(cfr +  "     " + nodeID)
+                        self.notify(cfr +  "     " + nodeID)
                     thisLine = [cfr, nodeID]
             
                     t = TreeOperator(connection = self.connection)
@@ -168,7 +177,7 @@ class Program:
                 
                     #------------------run solver-------------------
                     if solveFirst:
-                        self.interface.notify("Solving " + cfr + " to an accuracy of " + str(self.connection.accuracy) + ".")
+                        self.notify("Solving " + cfr + " to an accuracy of " + str(self.connection.accuracy) + ".")
                         self.tryFunction(pio.solve, [])
                     
                     #------------------attach EVs for this .cfr file to this CSV line---------------------
@@ -202,7 +211,7 @@ class Program:
                         msg = "Saved to: " + savePath
                         if (save_type):
                             msg = msg = "Saved to: " + savePath + " using " + save_type
-                        self.interface.notify(msg)
+                        self.notify(msg)
                     
                     #append results for this cfr to csv
                     toCSV.append(thisLine)
@@ -242,11 +251,11 @@ class Program:
         for cfr in cfrFiles:
             nodeID = self.tryFunction(self.get_file_nodeID, [cfr, nodeBook])
             if nodeID:
-                self.interface.notify("-----------------------------------------")
-                self.interface.notify("Now working on...." + cfr + " - " + nodeID)
+
+                self.notify("Now working on...." + cfr + " - " + nodeID)
                 # set strategy
                 if self.tryFunction(pio.load_tree, [folder + "\\" + cfr]):
-                    self.interface.notify(cfr + " loaded!")
+                    self.notify(cfr + " loaded!")
                     treeOp = TreeOperator(self.connection)
                     
                     family = self.tryFunction(treeOp.get_family,[nodeID])
@@ -257,14 +266,14 @@ class Program:
                         needsTitle = False
                         
                     self.tryFunction(treeOp.set_strategy, [nodeID, weights_map].copy())
-                    self.interface.notify("Strategy set for " + cfr) 
+                    self.notify("Strategy set for " + cfr) 
                 
                     # dump tree
                     self.tryFunction(pio.saveTree, [path + cfr, save_type])
                     msg = "Saved to " + path + cfr
                     if (save_type):
                         msg = "Saved to " + path + cfr + " using " + save_type + " save."
-                    self.interface.notify(msg)
+                    self.notify(msg)
                     
                     # get results
                     before_solving = self.run_cfr(path, [cfr], nodeBook, solveFirst = False, needsTitle= False, needsLoading=False, save_type = save_type, publish_results=False)
@@ -303,7 +312,7 @@ class Program:
         if not solved:
             msg = "Saved unsolved results to " + path
         
-        self.interface.notify(msg)
+        self.notify(msg)
         
     #args[0] : file Name
     #args[1] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
@@ -357,10 +366,9 @@ class Program:
     def end(self, args : list[str]):
         # we have to explicitely close the solver process
         self.connection.exit()
-        self.interface.output("Closing connection to solver...done!")
+        self.notify("Closing connection to solver...done!")
 
     
         
 if __name__ == '__main__': 
     unittest.main() 
-

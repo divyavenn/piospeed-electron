@@ -20,17 +20,12 @@ class InputType (Enum):
     text = 3
     directory = 4
 
-class InputMetadata ():    
-    def __init__(self, default_location : str = None, prompt : str = None) :
-        self.default_location = default_location
-        self.prompt = prompt
         
     
 # an input needed by the user, with accompanying prompt
 class Input ():
-    def __init__(self, type : InputType, metadata : InputMetadata = InputMetadata()) :
+    def __init__(self, type : InputType) :
         self.type = type
-        self.metadata = metadata
             
     # checks if is valid input
     def isValid (self, input: str) -> bool:
@@ -45,8 +40,8 @@ class Input ():
 
 # a file input with specific extension or extensions needed from the user
 class FileInput (Input):
-    def __init__(self, extension : Extension, metadata : InputMetadata = None):
-        super().__init__(InputType.file, metadata)
+    def __init__(self, extension : Extension):
+        super().__init__(InputType.file)
         self.extension : str = extension.value
     
     def isCorrectExtension (self, fName : str) :
@@ -57,18 +52,16 @@ class FileInput (Input):
     
     # check if file type is correct, if so return
     def parseInput(self, input : str) :
-        if self.isCorrectExtension(input):
+        if self.isCorrectExtension(input): 
             return input
         raise Exception(Errors.wrongFileType(self.extension))
 
 
 class FolderOf (FileInput) :
 
-    def __init__(self, extension: Extension, metadata : InputMetadata = None):
-        super().__init__(extension, metadata)
+    def __init__(self, extension: Extension):
+        super().__init__(extension)
         self.type = InputType.directory
-        if extension == Extension.cfr:
-            self.metadata.default_location = cfr_folder
     
     # return a list where first element is folder and second element is list of files belonging to this type
     def parseInput(self, input : str) -> list :
@@ -88,9 +81,8 @@ class FolderOf (FileInput) :
         return [input, neededFiles]
     
 class WeightsFile (FileInput):
-    def __init__(self, metadata : InputMetadata = None):
-        super().__init__(Extension.json, metadata)
-        self.metadata.default_location = strategies_folder
+    def __init__(self):
+        super().__init__(Extension.json)
     
     # input: a file path from the interface
     # output: a map of valid category names and their corresponding weights
@@ -138,9 +130,8 @@ class BoardFile(FileInput):
 
     decisionDict = Decisions.getDict()
     
-    def __init__(self, metadata : InputMetadata = None):
-        super().__init__(Extension.json, metadata)
-        self.metadata.default_location = nodeBook_folder
+    def __init__(self):
+        super().__init__(Extension.json)
         
     # input: a file path from the interface
     # output: [a map of cfr file names and their corresponding target nodeIDs, board_type]

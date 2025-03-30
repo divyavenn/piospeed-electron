@@ -20,7 +20,9 @@ import {
   CommandMap,
   getCommandDescription,
   AnimationState,
-} from './recoil/atoms';
+  Inputs,
+} from './recoil/atoms'; 
+
 import {
   AppContainer,
   SettingsButtonContainer,
@@ -46,32 +48,57 @@ import {
   Tagline,
   ErrorText,
   DescriptionText,
+  ModalOverlay,
+  ModalContainer,
+  ModalTitle,
+  ModalMessage,
+  ModalButtonContainer,
+  ModalButton,
+  NotificationContainer
 } from './styles/AppStyles';
 
 // Create a RecoilApp component to use hooks (RecoilRoot cannot use hooks directly)
 const RecoilApp: React.FC = () => {
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [solverPath, setSolverPath] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  const { settings, saveSettings } = useSettings();
+  const {settings, saveSettings } = useSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useRecoilState(settingsModalOpenState);
   const [isRunning, setIsRunning] = useRecoilState(isRunningState);
   const [currentStep, setCurrentStep] = useRecoilState(currentStepState);
   const currentCommand = useRecoilValue(currentCommandState);
-  const hasCommandSelected = useRecoilValue(hasCommandSelectedState);
   const [animation, setAnimation] = useRecoilState(animationState);
   const [solveType, setSolveType] = useRecoilState(solveTypeState);
   const [saveType, setSaveType] = useRecoilState(saveTypeState);
   const [nodelock, setNodelock] = useRecoilState(nodelockState);
 
+  
   // Check solver path on component mount
   useEffect(() => {
-    // Set loading to false immediately
-    setIsLoading(false);
     
-    // Still listen for Python messages for other functionality
+    // Listen for messages from Python
     const handlePythonMessage = (data: any) => {
       console.log('Received message from Python:', data);
+      
+      // Handle ready message
+      if (data.type === 'ready') {
+        setCurrentStep('Python backend is ready');
+      }
+      
+      // Handle notifications from Python
+      if (data.type === 'notification') {
+        setCurrentStep(data.data);
+      }
+      
+      // Handle command completion
+      if (data.type === 'command_complete') {
+        setIsRunning(false);
+        setCurrentStep('Command completed successfully');
+      }
+      
+      // Handle errors from Python
+      if (data.type === 'error') {
+        setIsRunning(false);
+        setCurrentStep(`Error: ${data.data}`);
+      }
+      
     };
 
     window.electron.onPythonMessage(handlePythonMessage);
@@ -104,41 +131,129 @@ const RecoilApp: React.FC = () => {
   }, [setAnimation]);
 
 
-  const executeCommand = () => {
+  const executeCommand = async () => {
+    console.log("Executing command");
     if (currentCommand === CommandMap.NONE) return;
-    
-    if (!solverPath) {
-      setCurrentStep('Error: Please set the PioSOLVER executable path in Settings');
-      return;
-    }
-    
+    console.log("Current command:", currentCommand);
     setIsRunning(true);
+    setCurrentStep('Preparing command execution...');
     
-    // Simulate command execution with steps
-    const steps = [
-      'Initializing command...',
-      'Processing files...',
-      'Running calculations...',
-      'Finalizing results...'
-    ];
-    
-    let stepIndex = 0;
-    setCurrentStep(steps[stepIndex]);
-    
-    console.log(`Executing command: ${currentCommand}`);
-    
-    const interval = setInterval(() => {
-      stepIndex++;
-      if (stepIndex < steps.length) {
-        setCurrentStep(steps[stepIndex]);
-      } else {
-        clearInterval(interval);
-        // Wait 1 second before ending to show the final step
-        setTimeout(() => {
-          setIsRunning(false);
-        }, 1000);
+    try {
+      console.log(`Preparing to execute command: ${currentCommand.name}`);
+      
+      // Get required inputs for the command
+      const requiredInputs = currentCommand.inputs || [];
+      const collectedInputs: string[] = [];
+      
+      // Get saved paths from settings
+      const settings = await window.electron.retrieveSettings();
+      
+      // Process inputs sequentially with validation
+      for (let i = 0; i < requiredInputs.length; i++) {
+        const input = requiredInputs[i];
+        let isValidInput = false;
+
+        // Keep prompting until we get a valid input
+        while (!isValidInput) {
+          setCurrentStep(`Input required: ${input.prompt}`);
+
+          // Get default path from settings based on input type
+          let defaultPath = null;
+          if (input.type === 'cfr_folder') defaultPath = settings.cfrFolder;
+          else if (input.type === 'weights_file') defaultPath = settings.weights;
+          else if (input.type === 'board_file') defaultPath = settings.nodeBook;
+          
+          // Determine file dialog options based on input type
+          const options: any = {
+            type: input.type === 'cfr_folder' ? 'both' : 'file',
+            title: input.prompt,
+            defaultPath: defaultPath ? defaultPath : ''
+          };
+
+          // Only add filters for file selection
+          if (options.type === 'file') {
+            options.filters = [{ 
+              name: `${input.extension.toUpperCase()} Files`, 
+              extensions: [input.extension.replace('.', '')] 
+            }];
+          }
+        
+          let inputType = input.type;
+
+          // Open file dialog
+          const selectedPath = await window.electron.selectPath(options);
+          
+          if (!selectedPath) {
+            // User cancelled input
+            setIsRunning(false);
+            setCurrentStep('Command cancelled: Missing required input');
+            return;
+          }
+          
+          // Validate the input with Python
+          setCurrentStep(`Validating input: ${selectedPath}...`);
+          
+          // Send validation request to Python
+          await window.electron.sendToPython({
+            type: 'validate_input',
+            data: {
+              input_type: inputType,
+              value: selectedPath
+            }
+          });
+            
+          // Wait for validation response
+          await new Promise<void>((resolve) => {
+            const handleValidationResponse = async (data: any) => {
+              if (data.type === 'input_validation' && data.data.input_type === inputType) {
+                if (data.data.is_valid === true) {
+                  // If input is valid, resolve immediately
+                  collectedInputs.push(selectedPath);
+                  isValidInput = true;
+                  window.electron.removePythonMessageListener(handleValidationResponse);
+                  resolve();
+                } else {
+                  // If input is invalid, show error dialog
+                  try {
+                    await window.electron.showError(data.data.error || 'Invalid input');
+                  } finally {
+                    window.electron.removePythonMessageListener(handleValidationResponse);
+                    resolve();
+                  }
+                }
+              }
+            };
+            
+            // Register the message listener
+            window.electron.onPythonMessage(handleValidationResponse);
+          });
+          
+        }
       }
-    }, 2000);
+      
+      // All inputs collected and validated, send the command to Python
+      setCurrentStep('Sending command to Python...');
+      
+      try {
+        await window.electron.sendToPython({
+          type: 'command',
+          data: {
+            type: Object.keys(CommandMap).find(key => CommandMap[key] === currentCommand) || 'NONE',
+            args: collectedInputs
+          }
+        });
+        
+        setCurrentStep('Command sent. Processing...');
+      } catch (error) {
+        console.error('Error executing command:', error);
+        setCurrentStep(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        setIsRunning(false);
+      }
+    } catch (error) {
+      console.error('Error executing command:', error);
+      setCurrentStep(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      setIsRunning(false);
+    }
   };
 
   const cancelCommand = () => {
@@ -156,13 +271,7 @@ const RecoilApp: React.FC = () => {
   };
 
   // Check if solver path is set
-  const isSolverPathSet = React.useMemo(() => {
-    console.log('Settings in App:', settings);
-    console.log('Solver path:', settings?.solverPath);
-    const result = settings?.solverPath !== null && settings?.solverPath !== undefined && settings?.solverPath !== '';
-    console.log('isSolverPathSet:', result);
-    return result;
-  }, [settings?.solverPath]);
+  const isSolverPathSet = Boolean(settings.solverPath);
 
   return (
     <AppContainer>
@@ -174,14 +283,7 @@ const RecoilApp: React.FC = () => {
         <Header showTagline={animation === 'intro'} />
       </CenteredHeaderContainer>
 
-      {error ? (
-        <MainContent $animate={animation}>
-          <ContentSection>
-            <ErrorText>{error}</ErrorText>
-          </ContentSection>
-        </MainContent>
-      ) : (
-        <MainContent $animate={animation}>
+      <MainContent $animate={animation}>
           <ContentSection>
             {isRunning ? (
               <ExecutionContainer>
@@ -289,7 +391,7 @@ const RecoilApp: React.FC = () => {
                   <ExecuteButton 
                     variant="primary" 
                     onClick={executeCommand}
-                    disabled={!hasCommandSelected || !isSolverPathSet}
+                    disabled={!isSolverPathSet}
                     $animate={animation}
                     style={{ 
                       opacity: !isSolverPathSet ? 0.5 : 1,
@@ -302,28 +404,14 @@ const RecoilApp: React.FC = () => {
               </>
             )}
           </ContentSection>
-        </MainContent>
-      )}
+      </MainContent>
+    
 
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
-        onSaveSettings={async (newSettings: any) => {
-          console.log('App received new settings:', newSettings);
-          try {
-            await saveSettings(newSettings);
-            
-            if (newSettings.solverPath) {
-              setSolverPath(newSettings.solverPath);
-              setError(null);
-            }
-            
-            setIsSettingsOpen(false);
-          } catch (error) {
-            console.error('Error saving settings:', error);
-          }
-        }}
+        onSaveSettings={saveSettings}
       />
       <Footer />
       

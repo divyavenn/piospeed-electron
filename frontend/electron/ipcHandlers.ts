@@ -123,44 +123,37 @@ export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void
    * → Opens a native file/directory dialog via dialog.showOpenDialog
    * → Returns the selected path to the renderer
    */
-  ipcMain.handle('select-path', async (_, options: {
-    type?: 'file' | 'directory' | 'both';
-    defaultPath?: string;
-    title?: string;
-    filters?: { name: string; extensions: string[] }[];
-  } = {}) => {
+  ipcMain.handle('select-path', async (_, options) => {
     const mainWindow = BrowserWindow.getFocusedWindow();
     
     if (!mainWindow) {
       throw new Error('No focused window found');
     }
     
-    // Set properties based on type
-    const properties: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles' | 'createDirectory' | 'promptToCreate' | 'noResolveAliases' | 'treatPackageAsDirectory' | 'dontAddToRecent'> = [];
-    
-    switch (options.type || 'file') {
-      case 'file':
-        properties.push('openFile');
-        break;
-      case 'directory':
-        properties.push('openDirectory');
-        break;
-      case 'both':
-        properties.push('openFile', 'openDirectory');
-        break;
-    }
-    
-    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-      properties,
-      defaultPath: options.defaultPath,
-      title: options.title,
-      filters: options.filters,
+    const result = await dialog.showOpenDialog(mainWindow, {
+      ...options,
+      properties: options.type === 'both' 
+        ? ['openFile', 'openDirectory'] 
+        : [options.type === 'file' ? 'openFile' : 'openDirectory']
     });
+    return result.filePaths[0] || null;
+  });
+
+  /**
+   * Handler for showing error dialogs
+   */
+  ipcMain.handle('show-error', async (_, message) => {
+    const mainWindow = BrowserWindow.getFocusedWindow();
     
-    if (canceled || filePaths.length === 0) {
-      return null;
+    if (!mainWindow) {
+      throw new Error('No focused window found');
     }
     
-    return filePaths[0]; // Return the first selected path
+    await dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: 'Error',
+      message: message,
+      buttons: ['OK']
+    });
   });
 }

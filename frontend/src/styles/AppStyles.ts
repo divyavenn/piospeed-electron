@@ -325,9 +325,92 @@ export const Tagline = styled.div`
 `;
 
 export const ErrorText = styled.div`
-  color: #ff4444;
-  font-size: 1.2rem;
-  text-align: center;
-  margin-bottom: 1rem;
+  color: ${({ theme }) => theme.colors.error};
+  margin-top: ${({ theme }) => theme.spacing.small};
+  font-size: 14px;
+`;
+
+// Error Dialog Components
+export const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+`;
+
+export const ModalContainer = styled.div`
+  background-color: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: ${({ theme }) => theme.spacing.large};
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+`;
+
+export const ModalTitle = styled.h3`
+  color: ${({ theme }) => theme.colors.error};
+  margin-top: 0;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: ${({ theme }) => theme.spacing.medium};
+  font-family: 'JetBrains Mono', monospace;
+`;
+
+export const ModalMessage = styled.p`
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: ${({ theme }) => theme.spacing.large};
+`;
+
+export const ModalButtonContainer = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
+export const ModalButton = styled.button`
+  padding: 8px 20px;
+  background-color: ${({ theme }) => theme.colors.primary};
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
   font-weight: 500;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.primaryLight};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+export const NotificationContainer = styled.div`
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.9);
+  color: #ff4444;
+  padding: 12px 24px;
+  border-radius: 8px;
+  z-index: 2000;
+  font-family: monospace;
+  max-width: 80%;
+  text-align: center;
+  pointer-events: none; // Allow clicking through the notification
 `;

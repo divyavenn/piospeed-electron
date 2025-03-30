@@ -1,14 +1,12 @@
 import json
-import socket
+import traceback
 import os
 import asyncio
 from SolverConnection.solver import Solver
+from Message import Message
+from inputs import FolderOf, WeightsFile, BoardFile, Extension
+# Import Program when needed to avoid circular imports
 
-
-class Message:
-    def __init__(self, type: str, data: any):
-        self.type = type
-        self.data = data
 
 class MessageQueue:
     def __init__(self, socket_path: str = '/tmp/electron_python.sock'):
@@ -19,35 +17,42 @@ class MessageQueue:
         self.is_connected = False
         self.connection_event = asyncio.Event()
         self.loop = asyncio.get_event_loop()
+        self.program = None
+        # For handling input responses
+        self.last_input_response = None
+        self.input_response_event = asyncio.Event()
         print("Python connected to socket " + socket_path)
 
-
-
-    # Python starts and waits for Electron to connect
-    # When Electron connects, Python sends a "ready" message using self.current_writer
-    # Electron can send messages to Python, which are read using self.current_client.readline()
-    # Python can send responses back to Electron using self.current_writer.write()
     async def start(self):
+        """Start the server and wait for connections"""
         try:
+            # Remove the socket file if it already exists
+            if os.path.exists(self.socket_path):
+                os.unlink(self.socket_path)
+                
+            # Start the Unix socket server
             self.server = await asyncio.start_unix_server(
-                self.prevent_multiple_connections,
+                self.handle_connection,
                 self.socket_path
             )
-            # Wait for connection before sending ready message
+            
+            # Set socket permissions to allow Electron to connect
+            os.chmod(self.socket_path, 0o777)
+            
+            print(f"Server started on {self.socket_path}")
+            
+            # Wait for a connection
             await self.connection_event.wait()
-            # send message to client that the server is ready
+            
+            # Send a ready message
             await self.send(Message("python ready", None))
+            
         except Exception as e:
-            print("Error starting server: " + str(e))
-            raise
+            print(f"Error starting server: {e}")
+            traceback.print_exc()
 
-    async def prevent_multiple_connections(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        if self.current_client is not None:
-            print("Rejecting new connection - already connected")
-            writer.close()
-            await writer.wait_closed()
-            return
-
+    async def handle_connection(self, reader, writer):
+        """Handle a new connection"""
         self.current_client = reader
         self.current_writer = writer
         self.is_connected = True
@@ -82,19 +87,19 @@ class MessageQueue:
             self.current_writer = None
             self.is_connected = False
     
-    
+    async def notify(self, msg):
+        """Send a notification message to the Electron frontend"""
+        await self.send(Message("notification", msg))
     
     async def message_listener(self):
         """Continuously listen for messages from Electron"""
         
         # Wait for connection to be established
         await self.connection_event.wait()
-        print("Python connected to Electron")
         
-        while self.is_connected:
+        while True:
             try:
-            
-                # Wait for a message
+                # Read a line from the socket
                 data = await self.current_client.readline()
                 
                 if not data:
@@ -113,53 +118,191 @@ class MessageQueue:
                     # handshake protocol
                     if message.type == 'electron ready':
                         await self.send(Message('hi!', None))
+                        # No need to create ElectronInterface anymore
+
                     # get solver path
                     elif message.type == 'solverPath':
                         try: 
                             connection = Solver(message.data)
                             await self.send(Message('solver ready', connection))
+                            # Create Program with notify function
+                            from program import Program
+                            self.program = Program(
+                                connection=connection,
+                                notify_func=self.notify_sync,
+                                get_input_func=None
+                            )
+                            # Add send_message method to program
+                            self.program.send_message = self.send
                         except Exception as e:
-                            await self.send(Message('error', 'Failed to connect to solver'))
-                            
+                            await self.send(Message('error', f'Failed to connect to solver: {str(e)}'))
                     
+                    # Handle command execution
+                    elif message.type == 'command':
+                        try:
+                            command_name = message.data.get('type')
+                            args = message.data.get('args', [])
+                            
+                            print(f"Received command: {command_name} with args: {args}")
+                            
+                            # Execute the command
+                            if self.program:
+                                # Get the command from the command map
+                                from menu import PluginCommands
+                                
+                                # Map frontend command names to PluginCommands enum
+                                command_map = {
+                                    'NODELOCK_SOLVE': PluginCommands.NODELOCK_SOLVE,
+                                    'RUN_MINI': PluginCommands.RUN_AUTO,
+                                    'RUN_FULL_SAVE': PluginCommands.RUN_FULL_SAVE,
+                                    'NODELOCK': PluginCommands.NODELOCK,
+                                    'GET_RESULTS': PluginCommands.GET_RESULTS,
+                                    'SAVE_NO_RIVERS': PluginCommands.SAVE_NO_RIVERS,
+                                    'SAVE_NO_TURNS': PluginCommands.SAVE_NO_TURNS
+                                }
+                                
+                                command = command_map.get(command_name)
+                                print(f"Mapped command: {command_name} -> {command}")
+                                
+                                if command:
+                                    # Set the command and args
+                                    self.program.set_command(command, args)
+                                    # Run the command asynchronously
+                                    asyncio.create_task(self.program.commandRun())
+                                    await self.send(Message('command_started', command_name))
+                                else:
+                                    await self.send(Message('error', f'Unknown command: {command_name}'))
+                            else:
+                                await self.send(Message('error', 'Program not initialized. Please set solver path first.'))
+                        except Exception as e:
+                            print(f"Error executing command: {str(e)}")
+                            traceback.print_exc()  # Print the full traceback for debugging
+                            await self.send(Message('error', f'Error executing command: {str(e)}'))
+                    
+                    # Handle input requests and responses
+                    elif message.type == 'input_response':
+                        # Store the response for retrieval
+                        self.last_input_response = message.data
+                        # Notify any waiting coroutines
+                        self.input_response_event.set()
+                    
+                    # Handle input validation requests
+                    elif message.type == 'validate_input':
+                        try:
+                            input_type = message.data.get('input_type')  # e.g., 'file', 'folder', 'cfr', 'json', etc.
+                            input_value = message.data.get('value')
+                            
+                            print(f"Validating input of type {input_type}: {input_value}")
+
+                            
+                            # Map input type to the appropriate Input class
+                            input_class_map = {
+                                'cfr_folder': FolderOf(Extension.cfr).parseInput,
+                                'weights_file': WeightsFile.parseInput,
+                                'board_file': BoardFile.parseInput,
+                            }
+                            
+                            # Get the appropriate validation method
+                            method = input_class_map.get(input_type)
+                            
+                            # Validate the input
+                            try:
+                                # Try to parse the input (this will validate it)
+                                method(input_value)
+                                    
+                                # Input is valid
+                                await self.send(Message('input_validation', {
+                                    'is_valid': True,
+                                    'input_type': input_type
+                                }))
+                            except Exception as e:
+                                # Input is invalid
+                                await self.send(Message('input_validation', {
+                                    'is_valid': False,
+                                    'error': str(e),
+                                    'input_type': input_type
+                                }))
+                            else:
+                                await self.send(Message('error', f'Unknown input type: {input_type}'))
+                        except Exception as e:
+                            print(f"Error validating input: {str(e)}")
+                            await self.send(Message('error', f'Error validating input: {str(e)}'))
+                    
+                    else:
+                        print(f"Unhandled message type: {message.type}")
+                
                 except json.JSONDecodeError as e:
                     print(f"Error decoding message: {e}")
-                    print(f"Raw data: {data}")
-                except Exception as e:
-                    print(f"Error processing message: {e}")
                     print(f"Raw data: {data}")
                 
             except Exception as e:
                 print(f"Error in message listener: {e}")
-                print(f"Error type: {type(e).__name__}")
-                import traceback
                 traceback.print_exc()
                 await asyncio.sleep(1)  # Prevent tight loop in case of errors
 
     async def run(self):
         try:
             # Start the server first
-            server_task = asyncio.create_task(self.start())
+            await self.start()
             
-            # Start a message listener loop
-            listener_task = asyncio.create_task(self.message_listener())
-            
-            # Wait for both tasks
-            await asyncio.gather(server_task, listener_task)
-            
+            # Then start listening for messages
+            await self.message_listener()
         except Exception as e:
-            print("Error in message loop: " + str(e))
-        finally:
-            await self.cleanup()
-            
+            print(f"Error in run: {e}")
+            traceback.print_exc()
+    
+    def notify_sync(self, message):
+        """Synchronous version of notify for use as a callback"""
+        asyncio.create_task(self.notify(message))
+    
     async def cleanup(self):
-        if self.server:
-            self.server.close()
-            await self.server.wait_closed()
-            print("Server disconnected")
-
+        """Clean up resources"""
         try:
+            if self.server:
+                self.server.close()
+                await self.server.wait_closed()
+                
+            if self.current_writer:
+                self.current_writer.close()
+                await self.current_writer.wait_closed()
+                
             if os.path.exists(self.socket_path):
                 os.unlink(self.socket_path)
         except Exception as e:
             print("Error during cleanup: " + str(e))
+
+        """Get the appropriate validator for the input type and command"""
+        from inputs import FileInput, FolderOf, Extension
+        
+        # Map of input types to validator classes
+        validators = {
+            'cfrFolder': {
+                'solve': FileInput(Extension.cfr),
+                'getResults': FileInput(Extension.cfr),
+                'resave': FolderOf(Extension.cfr),
+            },
+            'nodeBook': {
+                'resave': FileInput(Extension.json),
+            },
+            'weights': {
+                'resave': FileInput(Extension.json),
+            },
+            # Add more as needed
+        }
+        
+        # Return the appropriate validator or None if not found
+        return validators.get(input_type, {}).get(command)
+
+    async def wait_for_input_response(self):
+        """Wait for an input response from Electron"""
+        # Clear any previous response
+        self.last_input_response = None
+        self.input_response_event.clear()
+        
+        # Wait for a new response
+        await self.input_response_event.wait()
+        
+        # Return the response
+        response = self.last_input_response
+        self.last_input_response = None
+        return response

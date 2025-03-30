@@ -6,30 +6,76 @@ export type SolveType = 'none' | 'solve' | 'getResults';
 export type AnimationState = 'intro' | 'moveUp' | 'commandPalette';
 
 // Command types from menu.py (as a const object instead of enum)
-export const CommandMap = {
+
+export type Input = {
+  extension: string;
+  prompt: string;
+  type: 'board_file' | 'weights_file' | 'cfr_folder';
+}
+
+export const Inputs = {
+  nodeBook: { extension: ".json", prompt: "Pick a .json file with the nodeID and board texture for each .cfr file", type: 'board_file' } as Input,
+  weights: { extension: ".json", prompt: "Pick a .json file with the desired weights for each hand category.", type: 'weights_file' } as Input,
+  cfrFolder: { extension: ".cfr", prompt: "Pick a single .cfr file or folder of files to run", type: 'cfr_folder' } as Input
+}
+
+// Define interface for command definition
+export interface CommandDefinition {
+  name: string;
+  description: string;
+  inputs?: Input[];
+}
+
+// Define type for CommandMap
+export type CommandMapType = {
+  [key: string]: CommandDefinition;
+}
+
+export const CommandMap: CommandMapType = {
   NODELOCK_SOLVE: {
     name: "nodelock and run",
-    description: "Nodelock a folder of files and run the solver with the specified accuracy."
+    description: "Nodelock a folder of files and run the solver with the specified accuracy.",
+    inputs: [Inputs.cfrFolder, Inputs.nodeBook, Inputs.weights]
   },
   RUN_MINI: {
     name: "run",
-    description: "Run the solver on the selected files and compress all unnecessary nodes when saving"
+    description: "Run the solver on the selected files and compress all unnecessary nodes when saving",
+    inputs: [Inputs.cfrFolder, Inputs.nodeBook]
+  },
+  RUN_SMALL: {
+    name: "run (small save)",
+    description: "Run the solver and save with moderate compression.",
+    inputs: [Inputs.cfrFolder, Inputs.nodeBook]
   },
   RUN_FULL_SAVE: {
     name: "run (full save)",
-    description: "Run the solver and save complete data including all streets."
+    description: "Run the solver and save complete data including all streets.",
+    inputs: [Inputs.cfrFolder, Inputs.nodeBook]
   },
   NODELOCK: {
     name: "nodelock",
-    description: "Apply nodelocking to a folder of files without solving."
+    description: "Apply nodelocking to a folder of files without solving.",
+    inputs: [Inputs.cfrFolder, Inputs.nodeBook, Inputs.weights]
   },
   GET_RESULTS: {
     name: "get results",
-    description: "Calculate and display results from existing solutions without solving again."
+    description: "Calculate and display results from existing solutions without solving again.",
+    inputs: [Inputs.cfrFolder, Inputs.nodeBook]
   },
   SAVE_MINI: {
     name: "resave micro (no turns)",
-    description: "Compress all unnecessary nodes when saving to minimize file size."
+    description: "Compress all unnecessary nodes when saving to minimize file size.",
+    inputs: [Inputs.cfrFolder]
+  },
+  SAVE_NO_RIVERS: {
+    name: "resave (no rivers)",
+    description: "Resave files without river information to reduce file size.",
+    inputs: [Inputs.cfrFolder]
+  },
+  SAVE_NO_TURNS: {
+    name: "resave (no turns)",
+    description: "Resave files without turn information to reduce file size.",
+    inputs: [Inputs.cfrFolder]
   },
   NONE: {
     name: "none",
@@ -109,17 +155,13 @@ export const currentCommandState = selector({
     if (solveType === 'solve') {
       if (saveType === 'full') {
         return CommandMap.RUN_FULL_SAVE;
-      } else if (saveType === 'small') {
-        return CommandMap.RUN_SMALL;
       } else { // tiny
         return CommandMap.RUN_MINI;
       }
     }
     
     if (solveType === 'none') {
-      if (saveType === 'small') {
-        return CommandMap.SAVE_NO_RIVERS;
-      } else if (saveType === 'mini') {
+      if (saveType === 'mini') {
         return CommandMap.SAVE_NO_TURNS;
       }
     }

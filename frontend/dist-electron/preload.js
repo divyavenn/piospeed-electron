@@ -26,7 +26,9 @@ electron.contextBridge.exposeInMainWorld("electron", {
   // Updates application settings
   setSettings: (settings) => electron.ipcRenderer.invoke("set-settings", settings),
   // Opens a file or directory selection dialog
-  selectPath: (options) => electron.ipcRenderer.invoke("select-path", options)
+  selectPath: (options) => electron.ipcRenderer.invoke("select-path", options),
+  // Error dialog operations
+  showError: (message) => electron.ipcRenderer.invoke("show-error", message)
 });
 window.addEventListener("DOMContentLoaded", () => {
   const replaceText = (selector, text) => {

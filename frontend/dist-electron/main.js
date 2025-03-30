@@ -15124,33 +15124,28 @@ function setupIpcHandlers(messageQueue2, store2) {
       accuracy: store2.get("accuracy") || 0.02
     };
   });
-  require$$1$2.ipcMain.handle("select-path", async (_, options = {}) => {
+  require$$1$2.ipcMain.handle("select-path", async (_, options) => {
     const mainWindow2 = require$$1$2.BrowserWindow.getFocusedWindow();
     if (!mainWindow2) {
       throw new Error("No focused window found");
     }
-    const properties2 = [];
-    switch (options.type || "file") {
-      case "file":
-        properties2.push("openFile");
-        break;
-      case "directory":
-        properties2.push("openDirectory");
-        break;
-      case "both":
-        properties2.push("openFile", "openDirectory");
-        break;
-    }
-    const { canceled, filePaths } = await require$$1$2.dialog.showOpenDialog(mainWindow2, {
-      properties: properties2,
-      defaultPath: options.defaultPath,
-      title: options.title,
-      filters: options.filters
+    const result = await require$$1$2.dialog.showOpenDialog(mainWindow2, {
+      ...options,
+      properties: options.type === "both" ? ["openFile", "openDirectory"] : [options.type === "file" ? "openFile" : "openDirectory"]
     });
-    if (canceled || filePaths.length === 0) {
-      return null;
+    return result.filePaths[0] || null;
+  });
+  require$$1$2.ipcMain.handle("show-error", async (_, message) => {
+    const mainWindow2 = require$$1$2.BrowserWindow.getFocusedWindow();
+    if (!mainWindow2) {
+      throw new Error("No focused window found");
     }
-    return filePaths[0];
+    await require$$1$2.dialog.showMessageBox(mainWindow2, {
+      type: "error",
+      title: "Error",
+      message,
+      buttons: ["OK"]
+    });
   });
 }
 const store = new Store();

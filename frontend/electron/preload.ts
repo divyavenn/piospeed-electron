@@ -26,6 +26,9 @@ interface ElectronAPI {
     title?: string;
     filters?: { name: string; extensions: string[] }[];
   }) => Promise<string | null>;
+
+  // Error dialog operations
+  showError: (message: string) => Promise<void>;
 }
 
 // exposes a set of functions to the renderer process (the React app) under the global variable electron
@@ -65,7 +68,10 @@ contextBridge.exposeInMainWorld('electron', {
   setSettings: (settings) => ipcRenderer.invoke('set-settings', settings),
 
   // Opens a file or directory selection dialog
-  selectPath: (options) => ipcRenderer.invoke('select-path', options)
+  selectPath: (options) => ipcRenderer.invoke('select-path', options),
+
+  // Error dialog operations
+  showError: (message) => ipcRenderer.invoke('show-error', message)
 } as ElectronAPI);
 
 // We'll keep the version display code if it's being used
