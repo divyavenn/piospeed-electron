@@ -4,9 +4,9 @@ import os
 import asyncio
 from SolverConnection.testSolver import Solver
 from Message import Message
-from inputs import FolderOf, WeightsFile, BoardFile, Extension
 from testProgram import Program
-
+from menu import PluginCommands
+from inputs import InputType, CFRFolder, WeightsFile, BoardFile
 
 class MessageQueue:
     def __init__(self, socket_path: str = '/tmp/electron_python.sock'):
@@ -21,6 +21,7 @@ class MessageQueue:
         # For handling input responses
         self.last_input_response = None
         self.input_response_event = asyncio.Event()
+        self.command_map = {cmd.value.name: cmd for cmd in PluginCommands}
         print("Python connected to socket " + socket_path)
 
     async def start(self):
@@ -124,7 +125,7 @@ class MessageQueue:
                     elif message.type == 'solverPath':
                         try: 
                             connection = Solver(message.data)
-                            await self.send(Message('solver ready', connection))
+                            await self.send(Message('solver ready', None))
                             # Create Program with notify function
                             self.program = Program(
                                 connection=connection,
@@ -134,42 +135,35 @@ class MessageQueue:
                             self.program.send_message = self.send
                         except Exception as e:
                             await self.send(Message('error', f'Failed to connect to solver: {str(e)}'))
+                            
+                    elif message.type == 'resultsPath':
+                        if self.program:
+                            self.program.set_results_dir(message.data)
+                        else:
+                            await self.send(Message('error', 'Program not initialized. Please set solver path first.'))
+                            
+                    elif message.type == 'accuracy':
+                        if self.program:
+                            try:
+                                accuracy = float(message.data)
+                                self.program.update_accuracy(accuracy)
+                                await self.send(Message('accuracy', accuracy))
+                            except ValueError:
+                                await self.send(Message('error', 'Invalid accuracy value'))
+                        else:
+                            await self.send(Message('error', 'Program not initialized. Please set solver path first.'))
                     
                     # Handle command execution
                     elif message.type == 'command':
                         try:
                             command_name = message.data.get('type')
-                            args = message.data.get('args', [])
+                            args = message.data.get('args', {})
                             
                             print(f"Received command: {command_name} with args: {args}")
                             
                             # Execute the command
                             if self.program:
-                                # Get the command from the command map
-                                from menu import PluginCommands
-                                
-                                # Map frontend command names to PluginCommands enum
-                                command_map = {
-                                    'NODELOCK_SOLVE': PluginCommands.NODELOCK_SOLVE,
-                                    'RUN_MINI': PluginCommands.RUN_AUTO,
-                                    'RUN_FULL_SAVE': PluginCommands.RUN_FULL_SAVE,
-                                    'NODELOCK': PluginCommands.NODELOCK,
-                                    'GET_RESULTS': PluginCommands.GET_RESULTS,
-                                    'SAVE_NO_RIVERS': PluginCommands.SAVE_NO_RIVERS,
-                                    'SAVE_NO_TURNS': PluginCommands.SAVE_NO_TURNS
-                                }
-                                
-                                command = command_map.get(command_name)
-                                print(f"Mapped command: {command_name} -> {command}")
-                                
-                                if command:
-                                    # Set the command and args
-                                    self.program.command(command, args)
-                                    # Run the command asynchronously
-                                    asyncio.create_task(self.program.commandRun())
-                                    await self.send(Message('command_started', command_name))
-                                else:
-                                    await self.send(Message('error', f'Unknown command: {command_name}'))
+                                await self.handle_command(command_name, args)
                             else:
                                 await self.send(Message('error', 'Program not initialized. Please set solver path first.'))
                         except Exception as e:
@@ -195,7 +189,7 @@ class MessageQueue:
                             
                             # Map input type to the appropriate Input class
                             input_class_map = {
-                                'cfr_folder': FolderOf(Extension.cfr).parseInput,
+                                'cfr_folder': CFRFolder().parseInput,
                                 'weights_file': WeightsFile().parseInput,
                                 'board_file': BoardFile().parseInput,
                             }
@@ -220,8 +214,6 @@ class MessageQueue:
                                     'error': str(e),
                                     'input_type': input_type
                                 }))
-                            else:
-                                await self.send(Message('error', f'Unknown input type: {input_type}'))
                         except Exception as e:
                             print(f"Error validating input: {str(e)}")
                             await self.send(Message('error', f'Error validating input: {str(e)}'))
@@ -238,6 +230,66 @@ class MessageQueue:
                 traceback.print_exc()
                 await asyncio.sleep(1)  # Prevent tight loop in case of errors
 
+    async def handle_command(self, command_str: str, args: dict) -> None:
+        """Handle a command from the frontend"""
+        try:
+            # Convert command string to enum using command map
+            print(f"Received command: {command_str} with args: {args}")
+            
+            command = self.command_map[command_str]
+
+            # Get list of required input types from command definition
+            required_inputs = [arg.type for arg in command.value.args]
+            
+            # Prepare arguments in correct order
+            ordered_args = []
+            
+            # First argument is always [folder_path, cfr_files] if cfr_folder is required
+            if InputType.cfr_folder in required_inputs:
+                folder_path = args.get('cfr_folder')
+                if not folder_path:
+                    raise ValueError("Missing cfr_folder argument")
+                
+                # Get all .cfr files in the folder
+                cfr_files = []
+                for root, _, files in os.walk(folder_path):
+                    for file in files:
+                        if file.endswith('.cfr'):
+                            cfr_files.append(os.path.join(root, file))
+                
+                if not cfr_files:
+                    raise ValueError(f"No .cfr files found in {folder_path}")
+                
+                ordered_args.append([folder_path, cfr_files])
+            
+            # Second argument is weights file if required
+            if InputType.weights_file in required_inputs:
+                weights_path = args.get('weights_file')
+                if not weights_path:
+                    raise ValueError("Missing weights_file argument")
+                # Create a map of category names -> weights (currently just the path)
+                weights_map = {'weights': weights_path}
+                ordered_args.append(weights_map)
+            
+            # Third argument is board file and type if required
+            if InputType.board_file in required_inputs:
+                board_path = args.get('board_file')
+                if not board_path:
+                    raise ValueError("Missing board_file argument")
+                # Create the [nodeID/map, board_type] array
+                # For now, using board_path as nodeID and 'default' as board_type
+                board_info = [board_path, 'default', board_path]  # [nodeID, board_type, original_path]
+                ordered_args.append(board_info)
+            
+            print(f"Executing command {command} with ordered args: {ordered_args}")
+            # Run the command with ordered arguments
+            await self.program.commandRun(command, ordered_args)
+        
+        except KeyError:
+            await self.send(Message('error', f'Unknown command: {command_str}'))
+        except Exception as e:
+            await self.send(Message('error', f'Error executing command: {str(e)}'))
+    
     async def run(self):
         try:
             # Start the server first
@@ -268,39 +320,3 @@ class MessageQueue:
                 os.unlink(self.socket_path)
         except Exception as e:
             print("Error during cleanup: " + str(e))
-
-        """Get the appropriate validator for the input type and command"""
-        from inputs import FileInput, FolderOf, Extension
-        
-        # Map of input types to validator classes
-        validators = {
-            'cfrFolder': {
-                'solve': FileInput(Extension.cfr),
-                'getResults': FileInput(Extension.cfr),
-                'resave': FolderOf(Extension.cfr),
-            },
-            'nodeBook': {
-                'resave': FileInput(Extension.json),
-            },
-            'weights': {
-                'resave': FileInput(Extension.json),
-            },
-            # Add more as needed
-        }
-        
-        # Return the appropriate validator or None if not found
-        return validators.get(input_type, {}).get(command)
-
-    async def wait_for_input_response(self):
-        """Wait for an input response from Electron"""
-        # Clear any previous response
-        self.last_input_response = None
-        self.input_response_event.clear()
-        
-        # Wait for a new response
-        await self.input_response_event.wait()
-        
-        # Return the response
-        response = self.last_input_response
-        self.last_input_response = None
-        return response

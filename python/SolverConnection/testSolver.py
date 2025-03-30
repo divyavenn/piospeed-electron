@@ -1,7 +1,6 @@
 import subprocess
 import os
 import pathlib
-from global_var import accuracy
 
 printConsole = False
 
@@ -18,4 +17,4 @@ class Solver(object):
         Create a new solver instance.
         """
         self.solverPath = path
-        self.accuracy = accuracy
+        self.accuracy = 0.2

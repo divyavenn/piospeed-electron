@@ -1,8 +1,6 @@
 from __future__ import annotations
 from enum import Enum
-from inputs import Input, FileInput, FolderOf, WeightsFile, BoardFile, Extension, InputType
-
-import unittest
+from inputs import Input, CFRFolder, WeightsFile, BoardFile, InputType
 
 #
 class Command:
@@ -19,43 +17,46 @@ class Command:
 
 class PluginCommands(Enum):
 
-    NODELOCK_SOLVE = Command("nodelock and run",
-                       [FolderOf(Extension.cfr),
+    NODELOCK_SOLVE = Command("nodelock_solve",
+                       [CFRFolder(),
                         WeightsFile(),
                         BoardFile()],
                        "Allows you to nodelock a folder of files at once.")
     
-    RUN_AUTO = Command("run", 
-                  [FolderOf(Extension.cfr),
+    RUN_AUTO = Command("run_auto", 
+                  [CFRFolder(),
                    BoardFile()],
                   "solves + resaves .cfr file")
     
-    RUN_FULL_SAVE = Command("run (full save)", 
-                  [FolderOf(Extension.cfr),
+    RUN_FULL_SAVE = Command("run_full_save", 
+                  [CFRFolder(),
                    BoardFile()],
                   "solves + resaves .cfr file as mini save (no rivers)")
     
     NODELOCK = Command("nodelock",
-                       [FolderOf(Extension.cfr),
+                       [CFRFolder(),
                         WeightsFile(),
                         BoardFile()],
                        "Allows you to nodelock a folder of files at once.")
     
-    GET_RESULTS = Command("get results",
-                        [FolderOf(Extension.cfr),
+    GET_RESULTS = Command("get_results",
+                        [CFRFolder(),
                         BoardFile()],
                         "")
 
-    SAVE_NO_RIVERS = Command("resave small (no rivers)",
-                            [FolderOf(Extension.cfr)],
+    SAVE_NO_RIVERS = Command("save_no_rivers",
+                            [CFRFolder()],
                             "")
 
-    SAVE_NO_TURNS = Command("resave micro (no turns)",
-                            [FolderOf(Extension.cfr)],
+    SAVE_NO_TURNS = Command("save_no_turns",
+                            [CFRFolder()],
                             "")
     
-    SET_ACCURACY = Command("change accuracy", [Input(InputType.number)],
+    SET_ACCURACY = Command("set_accuracy", [Input(InputType.accuracy)],
                        "Allows you to change accuracy of solver (default is .002)")
     
     END = Command("end", [], "")
 
+
+if __name__ == "__main__":
+    print(PluginCommands["NODELOCK_SOLVE"])

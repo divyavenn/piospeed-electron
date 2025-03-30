@@ -19,6 +19,17 @@ interface ElectronAPI {
   retrieveSettings: () => Promise<{settings : AppSettings}>;
   setSettings: (settings: Partial<AppSettings>) => Promise<{ success: boolean; error?: string }>;
   
+  // Store operations
+  getSettings: () => Promise<any>;
+  saveSettings: (settings: any) => Promise<any>;
+
+  // Path methods
+  setSolverPath: (path: string) => Promise<void>;
+  setResultsPath: (path: string) => Promise<void>;
+  setAccuracy: (accuracy: any) => Promise<void>;
+  onAccuracyUpdated: (callback: (value: any) => void) => void;
+  removeAccuracyListener: (callback: (value: any) => void) => void;
+
   // File dialog operations
   selectPath: (options?: { 
     type?: 'file' | 'directory' | 'both';
@@ -66,6 +77,31 @@ contextBridge.exposeInMainWorld('electron', {
 
   // Updates application settings
   setSettings: (settings) => ipcRenderer.invoke('set-settings', settings),
+
+  // Store operations
+  getSettings: () => {
+    return ipcRenderer.invoke('get-settings');
+  },
+  saveSettings: (settings) => {
+    return ipcRenderer.invoke('save-settings', settings);
+  },
+  
+  // Path methods
+  setSolverPath: (path) => {
+    return ipcRenderer.invoke('set-solver-path', path);
+  },
+  setResultsPath: (path) => {
+    return ipcRenderer.invoke('set-results-path', path);
+  },
+  setAccuracy: (accuracy) => {
+    return ipcRenderer.invoke('set-accuracy', accuracy);
+  },
+  onAccuracyUpdated: (callback) => {
+    ipcRenderer.on('accuracy-updated', (_, value) => callback(value));
+  },
+  removeAccuracyListener: (callback) => {
+    ipcRenderer.removeListener('accuracy-updated', callback);
+  },
 
   // Opens a file or directory selection dialog
   selectPath: (options) => ipcRenderer.invoke('select-path', options),

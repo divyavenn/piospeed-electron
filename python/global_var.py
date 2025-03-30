@@ -1,17 +1,5 @@
 import os
 
-# Default solver path - this will be overridden by the path provided by the user
-solverPath = None  # Will be set via config or UI
-
-# Fix hardcoded Windows paths to use platform-independent structure
-# These are sample/placeholder paths and will likely be overridden
-cfr_folder = os.path.join("samples", "cfr")
-strategies_folder = os.path.join("samples", "weights")
-nodeBook_folder = os.path.join("samples", "boards")
-accuracy = .02  # as a fraction of pot
-
-# Make currentdir cross-platform compatible
-currentdir = os.getcwd()
 totalCombos = 1326
 
 exception_categories = {"bdfd_1card": 1,
@@ -44,5 +32,3 @@ draw_category_index = {"no_draw": 0,
                        "8out_straight_draw": 4,
                        "flush_draw": 5,
                        "combo_draw": 6}
-
-

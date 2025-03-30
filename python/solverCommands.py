@@ -1,13 +1,10 @@
 
 from __future__ import annotations
-from stringFunc import parseEV, toFloat, parseTreeInfoToMap, parseSettingsToMap, parseNodeIDtoList, makeNodeIDfromList
-import unittest
+from stringFunc import parseEV, toFloat, parseTreeInfoToMap, parseNodeIDtoList, makeNodeIDfromList
 from inputs import BoardFile, Decisions
-from global_var import solverPath
 from SolverConnection.solver import Solver
 from decimal import Decimal
 from treeops import TreeOperator, normalizeWeight, nodeInfo
-from fileIO import addRowstoCSV, addRowtoCSV, IO
 consoleLog = False
 
 # functions that transmit commands to the solver to get correct output
@@ -184,123 +181,3 @@ def parseNodeLinetoBetSizes (line : str) -> str:
         
     
         
-class Tests(unittest.TestCase):
-    
-    
-    def getEVs(self):
-        self.connection = Solver(solverPath)
-        self.pio = SolverCommmand(self.connection)
-        testFiles = {"KdTc9h_small.cfr" : [36.790, 16.210] ,
-                     "Qh6c5s_small.cfr" : [22.573, 30.427] ,
-                     "As5h3s_small.cfr" : [28.865, 24.135]}
-        for file in testFiles:
-            self.pio.load_tree(r"C:\Users\degeneracy station\Documents\PioSolver-plugin\sample\cfr\\" + file)
-            oop, ip = self.pio.getEV()
-            right_oop, right_ip = testFiles.get(file)
-            self.assertAlmostEqual(toFloat(oop), right_oop, delta = .005)
-            self.assertAlmostEqual(toFloat(ip), right_ip, delta = .005)
-            
-        self.connection.exit()
-    
-
-    def SetAccuracy(self):
-        self.connection = Solver(solverPath)
-        self.pio = SolverCommmand(self.connection)
-        self.pio.load_tree(r"C:\Users\degeneracy station\Documents\PioSolver-plugin\sample\cfr\KdTc9h.cfr")
-        
-        info = parseTreeInfoToMap(self.connection.command("show_tree_info"))
-        self.assertEqual(info["Pot"], Decimal('55'))
-        settings = parseSettingsToMap(self.connection.command("show_settings"))
-        self.assertEqual(settings["accuracy"], Decimal('0.11'))
-        
-        
-        self.pio.setAccuracy([.01]) 
-        settings = parseSettingsToMap(self.connection.command("show_settings"))
-        self.assertEqual(settings["accuracy"], Decimal(".55"))
-        
-        self.connection.exit()
-            
-    def testFrequencies(self):
-        self.connection = Solver(solverPath)
-        self.pio = SolverCommmand(self.connection)
-        
-        
-        nodes = ["r:0:c:b16", "r:0:c:c", "r:0:c:b16:c", "r:0:c:b16:b68", "r:0:c:b16:f", "r:0:c:b16:b68:b154", "r:0:c:b16:b68:c", "r:0:c:b16:b68:f"]
-        testFiles = {"As5h3s.cfr" : [.5, .5, 0.3333, 0.3333, 0.3333, 0.3333, 0.3333, 0.3333] }
-        
-        for file in testFiles:
-            self.pio.load_tree(r"C:\Users\degeneracy station\Documents\PioSolver-plugin\sample\cfr\\" + file)
-            for i in range(0, len(nodes)):
-                frequency = self.pio.getActionFrequency([nodes[i]]) 
-                correct_frequency = testFiles.get(file)[i]
-                #try:
-                self.assertAlmostEqual(frequency, Decimal(correct_frequency), delta = .0001 )
-                #except Exception:
-                #    "Failed " + str(file) + "\t" + str(nodes[i])
-            
-        self.connection.exit()
-    
-    def Subtree(self):
-        self.connection = Solver(solverPath)
-        self.pio = SolverCommmand(self.connection)
-        
-        # load_tree "C:\Users\degeneracy station\Documents\PioSolver-plugin\sample\cfr\KdTc9h_small.cfr"
-        self.pio.load_tree(r"C:\Users\degeneracy station\Documents\PioSolver-plugin\sample\cfr\KdTc9h_small.cfr")
-        tree_lines = self.connection.command("show_all_lines")
-        
-        # created at r:0:c:b16:c:3c:c:b77
-        self.pio.load_tree(r"C:\Users\degeneracy station\Documents\PioSolver-plugin\sample\cfr\KdTc9h_small_sub.cfr")
-        subtree_lines = self.connection.command("show_all_lines")
-        
-        tree = []
-        subtree = []
-        not_in_subtree = []
-        not_in_tree = []
-        
-        for line in tree_lines:
-            tree.append([line])
-            if line not in subtree_lines:
-                not_in_subtree.append([line])
-
-                
-        
-        for line in subtree_lines:
-            subtree.append([line])
-            if line not in tree_lines:
-                not_in_tree.append([line])
-                
-            
-                
-
-        addRowstoCSV("tree.csv", tree, [IO.LOCAL])
-        addRowstoCSV("not_in_subtree.csv", not_in_subtree, [IO.LOCAL])
-        addRowstoCSV("subtree.csv", subtree, [IO.LOCAL])
-        addRowstoCSV("not_in_tree.csv", not_in_tree, [IO.LOCAL])
-        
-        self.connection.exit()
-        
-        #self.pio.createSubtree(["r:0:c:b16:c:3c:c:b77"])
-        #self.pio.saveTree([r"C:\Users\degeneracy station\Documents\PioSolver-plugin\sample\cfr\KdTc9h_small_subtree.cfr"])
-        # show_node r:0:c:b16:c:3c:c:b77
-        # show_range OOP r:0:c:b16:c:3c:c:b77
-        # show_range IP r:0:c:b16:c:3c:c:b77
-        
-        
-        # set_range OOP 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0 0.333333343 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0 0 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343 0 0.333333343 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.333333343 0.333333343 0.333333343
-        # set_range IP 0.166666657 0.166666657 0.166666672 0.166666657 0.166666672 0.166666672 0 0 0 0 0 0.166666672 0 0 0 0 0 0.166666672 0 0 0.166666672 0 0 0 0.166666672 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0.166666672 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0.166666672 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0.166666672 0 0.166666672 0 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0 0.166666672 0.166666672 0.166666672 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.166666672 0 0.166666672 0 0.166666672 0.166666672 0.166666672
-        # set_pot 0 0 87
-        # set_board KdTc9h3c
-        
-        pot = 87
-        stacks = 959
-        board = "KdTc9h3c"
-
-    def NodeLineToBetSize(self):
-        self.assertEqual(parseNodeLinetoBetSizes("r:0:c:b16:c:c:b146:b354:b975"), "0 0 16 16 16 16 162 162 516 516 1491 ")
-        self.assertEqual(parseNodeLinetoBetSizes("r:0:c:b16:c:c:b146:b354:b975:c"), "0 0 16 16 16 16 162 162 516 516 1491 1491 ")
-        self.assertEqual(parseNodeLinetoBetSizes("r:0:c:b16:c:c:b146:b354:b975:f"), "0 0 16 16 16 16 162 162 516 516 1491 516")
-        
-        
-        
-if __name__ == '__main__': 
-    unittest.main() 

@@ -2,7 +2,6 @@ from __future__ import annotations
 import csv
 import json
 import os
-from global_var import currentdir
 import unittest 
 from errorMessages import Errors
 from enum import Enum
@@ -15,12 +14,15 @@ class IO(Enum):
 
 def getIOSettings(fName : str, options = []) -> str:
     return ["a+" if (IO.APPEND in options) else "w+", 
-            os.path.join(currentdir, fName) if (IO.LOCAL in options) else fName]
+            os.path.join(os.getcwd(), fName) if (IO.LOCAL in options) else fName]
 
 
 def addRowstoCSV (fName: str, rows: list[list], options = []) -> None:
     mode, path = getIOSettings(fName, options)
     path = checkPath(path, ".csv")
+    
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     
     with open(path, mode, newline='') as file:
         w = csv.writer(file)
@@ -32,6 +34,9 @@ def addRowtoCSV (fName: str, row: list, options = []) -> None:
     mode, path = getIOSettings(fName, options)
     path = checkPath(path, ".csv")
     
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
     with open(path, mode, newline='') as file:
         w = csv.writer(file)
         w.writerow(row)
@@ -40,7 +45,7 @@ def addRowtoCSV (fName: str, row: list, options = []) -> None:
 
 def JSONtoMap(fName : str, options = []) -> dict:
     mode = "r"
-    path = os.path.join(currentdir, fName) if (IO.LOCAL in options) else fName
+    path = os.path.join(os.getcwd(), fName)
     path = checkPath(path, ".json")
     
     with open(path, mode, newline='') as file:
@@ -51,6 +56,9 @@ def JSONtoMap(fName : str, options = []) -> dict:
 def mapToJSON(fName : str, map: dict, options = []) -> dict:
     mode, path = getIOSettings(fName, options)
     path = checkPath(path, ".json")
+    
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     
     with open(path, mode, newline='') as file:
         json.dump(map, file)

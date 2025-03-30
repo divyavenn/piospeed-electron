@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { RecoilRoot, useRecoilState, useRecoilValue } from 'recoil';
 import Background from './components/layout/Background';
 import Header from './components/layout/Header';
@@ -6,21 +6,23 @@ import Footer from './components/layout/Footer';
 import Button from './components/UI/Button';
 import SettingsButton from './components/UI/SettingsButton';
 import SettingsModal from './components/Settings/SettingsModal';
-import { useSettings } from './contexts/SettingsContext';
-import {
+import { useSettings, AppSettings } from './contexts/SettingsContext';
+import { 
+  currentCommandState, 
+  CommandMap, 
+  hasCommandSelectedState, 
+  currentStepState, 
+  animationState, 
+  settingsModalOpenState,
   nodelockState,
   solveTypeState,
   saveTypeState,
   isRunningState,
-  currentStepState,
-  animationState,
-  settingsModalOpenState,
-  currentCommandState,
-  hasCommandSelectedState,
-  CommandMap,
-  getCommandDescription,
+  SolveType,
+  SaveType,
   AnimationState,
   Inputs,
+  getCommandDescription
 } from './recoil/atoms'; 
 
 import {
@@ -59,7 +61,7 @@ import {
 
 // Create a RecoilApp component to use hooks (RecoilRoot cannot use hooks directly)
 const RecoilApp: React.FC = () => {
-  const {settings, saveSettings } = useSettings();
+  const { settings, updateSettings, isLoading } = useSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useRecoilState(settingsModalOpenState);
   const [isRunning, setIsRunning] = useRecoilState(isRunningState);
   const [currentStep, setCurrentStep] = useRecoilState(currentStepState);
@@ -69,7 +71,20 @@ const RecoilApp: React.FC = () => {
   const [saveType, setSaveType] = useRecoilState(saveTypeState);
   const [nodelock, setNodelock] = useRecoilState(nodelockState);
 
-  
+  const handleSettingsSubmit = async (newSettings: AppSettings) => {
+    try {
+      await updateSettings(newSettings);
+      if (newSettings.solverPath) {
+        window.electron.setSolverPath(newSettings.solverPath);
+      }
+      if (newSettings.resultsPath) {
+        window.electron.setResultsPath(newSettings.resultsPath);
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  };
+
   // Check connection state on component mount
   useEffect(() => {
     const checkConnectionAndSendSolver = async () => {
@@ -100,12 +115,18 @@ const RecoilApp: React.FC = () => {
       // Handle notifications from Python
       if (data.type === 'notification') {
         setCurrentStep(data.data);
+        if (data.data === 'Command completed.') {
+          console.log('Command completed.');
+          setIsRunning(false);
+          setAnimation('commandPalette');
+        }
       }
       
       // Handle command completion
       if (data.type === 'command_complete') {
         setIsRunning(false);
-        setCurrentStep('Command completed successfully');
+        setCurrentStep('Command completed.');
+        setAnimation('commandPalette');
       }
       
       // Handle errors from Python
@@ -146,26 +167,20 @@ const RecoilApp: React.FC = () => {
 
 
   const executeCommand = async () => {
-    console.log("Executing command");
-    if (currentCommand === CommandMap.NONE) return;
-    console.log("Current command:", currentCommand);
-    setIsRunning(true);
-    setCurrentStep('Preparing command execution...');
+    if (!currentCommand || !isSolverPathSet) return;
     
-    try {
-      console.log(`Preparing to execute command: ${currentCommand.name}`);
+    setIsRunning(true);
+    const collectedInputs: { [key: string]: string } = {};
+    
+    // Get required inputs for the command
+    const requiredInputs = currentCommand.inputs || [];
+    
+    // Collect all required inputs
+    for (const input of requiredInputs) {
+      let isValidInput = false;
       
-      // Get required inputs for the command
-      const requiredInputs = currentCommand.inputs || [];
-      const collectedInputs: string[] = [];
-      
-      // Process inputs sequentially with validation
-      for (let i = 0; i < requiredInputs.length; i++) {
-        const input = requiredInputs[i];
-        let isValidInput = false;
-
         // Keep prompting until we get a valid input
-        while (!isValidInput) {
+      while (!isValidInput) {
           setCurrentStep(`Input required: ${input.prompt}`);
 
           // Get default path from settings based on input type
@@ -177,7 +192,7 @@ const RecoilApp: React.FC = () => {
           // Determine file dialog options based on input type
           const options: any = {
             type: input.type === 'cfr_folder' ? 'both' : 'file',
-            title: input.prompt,
+          title: input.prompt,
             defaultPath: defaultPath ? defaultPath : ''
           };
 
@@ -188,8 +203,7 @@ const RecoilApp: React.FC = () => {
               extensions: [input.extension.replace('.', '')] 
             }];
           }
-        
-          let inputType = input.type;
+      
 
           // Open file dialog
           const selectedPath = await window.electron.selectPath(options);
@@ -208,7 +222,7 @@ const RecoilApp: React.FC = () => {
           await window.electron.sendToPython({
             type: 'validate_input',
             data: {
-              input_type: inputType,
+              input_type: input.type,
               value: selectedPath
             }
           });
@@ -216,17 +230,21 @@ const RecoilApp: React.FC = () => {
           // Wait for validation response
           await new Promise<void>((resolve) => {
             const handleValidationResponse = async (data: any) => {
-              if (data.type === 'input_validation' && data.data.input_type === inputType) {
+              if (data.type === 'input_validation' && data.data.input_type === input.type) {
                 if (data.data.is_valid === true) {
                   // If input is valid, resolve immediately
-                  collectedInputs.push(selectedPath);
+                  collectedInputs[input.type] = selectedPath;
                   isValidInput = true;
                   window.electron.removePythonMessageListener(handleValidationResponse);
                   resolve();
                 } else {
-                  // If input is invalid, show error dialog
+                  // If input is invalid, show error dialog and try again
                   try {
                     await window.electron.showError(data.data.error || 'Invalid input');
+                  } catch (error) {
+                    console.error('Error showing error dialog:', error);
+                    // If error dialog fails, still show error in UI
+                    setCurrentStep(`Error: ${data.data.error || 'Invalid input'}`);
                   } finally {
                     window.electron.removePythonMessageListener(handleValidationResponse);
                     resolve();
@@ -238,32 +256,25 @@ const RecoilApp: React.FC = () => {
             // Register the message listener
             window.electron.onPythonMessage(handleValidationResponse);
           });
-          
+
+      }
+    }
+    
+    // All inputs collected and validated, send the command to Python
+    setCurrentStep('Sending command to Python...');
+    
+    try {
+      await window.electron.sendToPython({
+        type: 'command',
+        data: {
+          type: currentCommand.name,
+          args: collectedInputs
         }
-      }
-      
-      // All inputs collected and validated, send the command to Python
-      setCurrentStep('Sending command to Python...');
-      
-      try {
-        await window.electron.sendToPython({
-          type: 'command',
-          data: {
-            type: Object.keys(CommandMap).find(key => CommandMap[key] === currentCommand) || 'NONE',
-            args: collectedInputs
-          }
-        });
-        
-        setCurrentStep('Command sent. Processing...');
-      } catch (error) {
-        console.error('Error executing command:', error);
-        setCurrentStep(`Error: ${error instanceof Error ? error.message : String(error)}`);
-        setIsRunning(false);
-      }
+      });
     } catch (error) {
       console.error('Error executing command:', error);
-      setCurrentStep(`Error: ${error instanceof Error ? error.message : String(error)}`);
       setIsRunning(false);
+      setCurrentStep(`Error: ${error.message}`);
     }
   };
 
@@ -329,7 +340,7 @@ const RecoilApp: React.FC = () => {
                           cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        Off
+                        off
                       </ToggleOption>
                       <ToggleOption 
                         $active={nodelock} 
@@ -339,7 +350,7 @@ const RecoilApp: React.FC = () => {
                           cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        On
+                        on
                       </ToggleOption>
                     </ToggleContainer>
                   </ToggleGroup>
@@ -355,7 +366,7 @@ const RecoilApp: React.FC = () => {
                           cursor: !isSolverPathSet ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        Solve
+                        solve
                       </ToggleOption>
                       <ToggleOption 
                         $active={solveType === 'getResults'} 
@@ -365,7 +376,17 @@ const RecoilApp: React.FC = () => {
                           cursor: !isSolverPathSet ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        Results
+                        results
+                      </ToggleOption>
+                      <ToggleOption 
+                        $active={solveType === 'none'} 
+                        onClick={() => isSolverPathSet && setSolveType('none')}
+                        style={{ 
+                          opacity: !isSolverPathSet ? 0.5 : 1,
+                          cursor: !isSolverPathSet ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        none
                       </ToggleOption>
                     </ToggleContainer>
                   </ToggleGroup>
@@ -402,7 +423,7 @@ const RecoilApp: React.FC = () => {
                   <ExecuteButton 
                     variant="primary" 
                     onClick={executeCommand}
-                    disabled={!isSolverPathSet}
+                    disabled={currentCommand == CommandMap.NONE || !isSolverPathSet}
                     $animate={animation}
                     style={{ 
                       opacity: !isSolverPathSet ? 0.5 : 1,
@@ -422,7 +443,7 @@ const RecoilApp: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
-        onSaveSettings={saveSettings}
+        onSaveSettings={handleSettingsSubmit}
       />
       <Footer />
       
@@ -453,7 +474,7 @@ const RecoilApp: React.FC = () => {
               boxShadow: 'none'
             }}
           >
-            Cancel
+            cancel
           </ExecuteButton>
         </div>
       )}

@@ -1,7 +1,6 @@
 import subprocess
 import os
 import pathlib
-from global_var import accuracy
 
 printConsole = False
 
@@ -11,8 +10,6 @@ class SolverException(Exception):
 
     
 class Solver(object):
-    
-
     def __init__(self, path : str):
         """
         Create a new solver instance.
@@ -28,7 +25,7 @@ class Solver(object):
         self.wait_line("END")
         self._hand_order = None
         
-        self.accuracy = accuracy
+        self.accuracy = 0.2
 
     def exit(self):
         self.process.kill()
@@ -89,5 +86,3 @@ class Solver(object):
         return line
 
 
-class TestSolver(Solver):
-      

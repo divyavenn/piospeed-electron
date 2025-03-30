@@ -25,6 +25,29 @@ electron.contextBridge.exposeInMainWorld("electron", {
   retrieveSettings: () => electron.ipcRenderer.invoke("retrieve-settings"),
   // Updates application settings
   setSettings: (settings) => electron.ipcRenderer.invoke("set-settings", settings),
+  // Store operations
+  getSettings: () => {
+    return electron.ipcRenderer.invoke("get-settings");
+  },
+  saveSettings: (settings) => {
+    return electron.ipcRenderer.invoke("save-settings", settings);
+  },
+  // Path methods
+  setSolverPath: (path) => {
+    return electron.ipcRenderer.invoke("set-solver-path", path);
+  },
+  setResultsPath: (path) => {
+    return electron.ipcRenderer.invoke("set-results-path", path);
+  },
+  setAccuracy: (accuracy) => {
+    return electron.ipcRenderer.invoke("set-accuracy", accuracy);
+  },
+  onAccuracyUpdated: (callback) => {
+    electron.ipcRenderer.on("accuracy-updated", (_, value) => callback(value));
+  },
+  removeAccuracyListener: (callback) => {
+    electron.ipcRenderer.removeListener("accuracy-updated", callback);
+  },
   // Opens a file or directory selection dialog
   selectPath: (options) => electron.ipcRenderer.invoke("select-path", options),
   // Error dialog operations

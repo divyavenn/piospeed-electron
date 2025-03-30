@@ -2,35 +2,34 @@ from __future__ import annotations
 from menu import PluginCommands, Command
 from inputs import Board
 from stringFunc import removeExtension, timestamp, get_file_name_from_path
-from SolverConnection.solver import Solver
+from SolverConnection.testSolver import Solver
 from solverCommands import SolverCommmand
 from typing import Callable
 from fileIO import addRowstoCSV
 import unittest
 import shutil
 import random
-import time
-
-
-
+import asyncio
+import os
+from bridge import Message
 
 class Program:
     
     def __init__(self, connection: Solver, notify_func: Callable[[str], None]):
         """
-        A test program that merely successfully returns commands or throws errors as requested
+        Initialize the Program with a solver connection and notification function
+        
+        Args:
+            connection: The solver connection
+            notify_func: Function to call for notifications
         """
-        #raise Exception("Initializion failed.")
-        
-        # Replace interface with direct function calls
+        self.connection = connection
         self.notify = notify_func
+        self.results_dir = None  # Will be set via message from frontend
+        self.accuracy = 0.02  # Default accuracy
         
-        # Add pending command and arguments
-        self.pending_command = None
-        self.pending_args = None
-        
-        #maintain a mapping of the commands to the functions that run them
-        self.commandDispatcher : dict[Command, Callable[[list[str]], None]] = { 
+        # Initialize command dispatcher
+        self.commandDispatcher = {
             PluginCommands.NODELOCK_SOLVE: self.nodelock_solve,
             PluginCommands.RUN_AUTO: self.solve,
             PluginCommands.RUN_FULL_SAVE: self.solve_full,
@@ -39,84 +38,93 @@ class Program:
             PluginCommands.SAVE_NO_RIVERS: self.resave_no_rivers,
             PluginCommands.SAVE_NO_TURNS: self.resave_no_turns,
             PluginCommands.SET_ACCURACY: self.update_accuracy,
-            PluginCommands.END: self.end}
-
+            PluginCommands.END: self.end
+        }
+        
+    def set_results_dir(self, path: str):
+        """Set the results directory path"""
+        self.results_dir = path
+        self.notify(f"Results directory set to: {path}")
+        
+    def get_results_path(self, filename: str) -> str:
+        """Get the full path for a results file"""
+        if self.results_dir:
+            return os.path.join(self.results_dir, filename)
+        # Default to cfr folder if no results dir set
+        return os.path.join(os.path.dirname(os.getcwd()), filename)
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
-    def resave_no_turns(self, args : list [str]):
-        self.resave(args[0][0], args[0][1], "no_turns")
+    async def resave_no_turns(self, args : list [str]):
+        await self.resave(args[0][0], args[0][1], "no_turns")
         
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
-    def resave_no_rivers(self, args : list [str]):
-        self.resave(args[0][0], args[0][1], "no_rivers")
+    async def resave_no_rivers(self, args : list [str]):
+        await self.resave(args[0][0], args[0][1], "no_rivers")
         
-    def resave(self, folder : str, files : str, save_type : str):
+    async def resave(self, folder : str, files : str, save_type : str):
         for cfr in files:
-            time.sleep(random.uniform(1, 3))
+            await asyncio.sleep(random.uniform(1, 3))
             self.notify("Resaved " + cfr + ".")
         
     # new accuracy of solver
-    def update_accuracy(self, args : list[str]):
-        time.sleep(random.uniform(1, 3))
+    async def update_accuracy(self, args : list[str]):
+        await asyncio.sleep(random.uniform(1, 3))
         self.notify("Accuracy set to " + args[0] + ".")
-        
+    
     async def commandRun(self, inputtedCommand : Command = None, inputtedArgs : list[str] = None):
+        print(inputtedCommand)
         await self.commandDispatcher[inputtedCommand](inputtedArgs)
-        if (inputtedCommand != PluginCommands.END):
-            await self.commandRun()
-        else:
-            await self.end([])
+        self.notify("Command completed.")
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     # args[1][0] : either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs
-    def solve(self, args: list[str]):
+    async def solve(self, args: list[str]):
         nodeBook = args[1][0]
         board_type = args[1][1]
         nodeBook_file_name = get_file_name_from_path(args[1][2])
         save_type = Program.get_save_type(board_type)
         
-        self.run_cfr(args[0][0], args[0][1], args[1][0], save_type = save_type)
+        await self.run_cfr(args[0][0], args[0][1], args[1][0], save_type = save_type)
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     # args[1][0] : either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs
-    def solve_full(self, args: list[str]):
-        self.run_cfr(args[0][0], args[0][1], args[1][0])
+    async def solve_full(self, args: list[str]):
+        await self.run_cfr(args[0][0], args[0][1], args[1][0])
 
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     # args[1][0] : either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs
-    def get_results(self, args: list[str]):
-        self.run_cfr(args[0][0], args[0][1], args[1][0], solveFirst = False)
+    async def get_results(self, args: list[str]):
+        await self.run_cfr(args[0][0], args[0][1], args[1][0], solveFirst = False)
         
     
         
-    def run_cfr(self, folder : str, cfrFiles : list[str], nodeBook, solveFirst = True, needsTitle = True, needsLoading = True, save_type = None, publish_results = True):
-        pio = SolverCommmand(self.connection)
+    async def run_cfr(self, folder : str, cfrFiles : list[str], nodeBook, solveFirst = True, needsTitle = True, needsLoading = True, save_type = None, publish_results = True):
         
         # arrays that will be written to CSV file
         toCSV = []
         
         for cfr in cfrFiles:  
           if solveFirst:
-            self.notify("Solving " + cfr + " to an accuracy of " + str(self.connection.accuracy) + ".")
-            time.sleep(random.uniform(1, 3))
+            self.notify("Solving " + cfr + " to an accuracy of " + str(self.accuracy) + ".")
+            await asyncio.sleep(random.uniform(1, 3))
             savePath = folder + r"\\" + cfr
-            time.sleep(random.uniform(1, 3))
+            await asyncio.sleep(random.uniform(1, 3))
             msg = "Saved to: " + savePath
             if (save_type):
-                msg = msg = "Saved to: " + savePath + " using " + save_type
-                self.notify(msg)
+                msg = "Saved to: " + savePath + " using " + save_type
+            self.notify(msg)
                     
             #append results for this cfr to csv
             toCSV.append(["", "", "", "", "", "", "", "", ""])
         
         
         if publish_results:
-            self.publish_results(folder, toCSV, solved = solveFirst)
+            await self.publish_results(folder, toCSV, solved = solveFirst)
         
         return toCSV
     
@@ -124,7 +132,7 @@ class Program:
     # args[0][1] : list of .cfr files
     # args[1] : map of category names -> weights
     # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
-    def nodelock_get_results_save(self, args : list[str], solve = False, auto_size = False):
+    async def nodelock_get_results_save(self, args : list[str], solve = False, auto_size = False):
         folder, cfrFiles = args[0]
         weights_file_path = args[1][0]
         weights_file_name = get_file_name_from_path(weights_file_path)
@@ -150,11 +158,11 @@ class Program:
                 # set strategy
                 if True:
                     self.notify(cfr + " loaded!")
-                    time.sleep(random.uniform(1, 3))
+                    await asyncio.sleep(random.uniform(1, 3))
                     self.notify("Strategy set for " + cfr) 
                 
                     # dump tree
-                    time.sleep(random.uniform(1, 3))
+                    await asyncio.sleep(random.uniform(1, 3))
                     msg = "Saved to " + path + cfr
                     if (save_type):
                         msg = "Saved to " + path + cfr + " using " + save_type + " save."
@@ -170,15 +178,15 @@ class Program:
             
             
         shutil.copyfile(weights_file_path, path + weights_file_name)
-        self.publish_results(path, toCSV, solve)
+        await self.publish_results(path, toCSV, solve)
         
         return path
         
     
-    def publish_results(self, folder:str, toCSV: list[list[str]], solved = True):
-        path = folder + "\\results_" + timestamp() + ".csv"
+    async def publish_results(self, folder:str, toCSV: list[list[str]], solved = True):
+        path = self.get_results_path("results_" + timestamp() + ".csv")
         if not solved:
-            path = folder + "\\unsolved_results" + ".csv"
+            path = self.get_results_path("unsolved_results" + ".csv")
 
         addRowstoCSV(path, toCSV)
         
@@ -194,15 +202,15 @@ class Program:
     # args[0][1] : list of .cfr files
     # args[1] : map of category names -> weights
     # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
-    def nodelock_solve(self, args : list[str]):
-        self.nodelock_get_results_save(args, solve=True, auto_size=True)
+    async def nodelock_solve(self, args : list[str]):
+        await self.nodelock_get_results_save(args, solve=True, auto_size=True)
         
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     # args[1] : map of category names -> weights
     # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
-    def nodelock(self, args : list[str]):
-        self.nodelock_get_results_save(args, auto_size=True)
+    async def nodelock(self, args : list[str]):
+        await self.nodelock_get_results_save(args, auto_size=True)
 
     
     @staticmethod
@@ -218,11 +226,10 @@ class Program:
         
         return save_type
         
-    def end(self, args : list[str]):
-        # we have to explicitely close the solver process
-        self.connection.exit()
-        self.notify("Closing connection to solver...done!")
-
+    async def end(self, args : list[str] = None):
+        """End the program"""
+        self.notify("Ending program.")
+        await asyncio.sleep(random.uniform(1, 3))
         
 if __name__ == '__main__': 
     unittest.main() 

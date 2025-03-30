@@ -2,7 +2,7 @@ import { atom, selector } from 'recoil';
 
 // Types
 export type SaveType = 'full' | 'mini';
-export type SolveType = 'none' | 'solve' | 'getResults';
+export type SolveType = 'none' |'solve' | 'getResults';
 export type AnimationState = 'intro' | 'moveUp' | 'commandPalette';
 
 // Command types from menu.py (as a const object instead of enum)
@@ -33,22 +33,17 @@ export type CommandMapType = {
 
 export const CommandMap: CommandMapType = {
   NODELOCK_SOLVE: {
-    name: "nodelock and run",
+    name: "nodelock_solve",
     description: "Nodelock a folder of files and run the solver with the specified accuracy.",
     inputs: [Inputs.cfrFolder, Inputs.nodeBook, Inputs.weights]
   },
-  RUN_MINI: {
-    name: "run",
+  RUN_AUTO: {
+    name: "run_auto",
     description: "Run the solver on the selected files and compress all unnecessary nodes when saving",
     inputs: [Inputs.cfrFolder, Inputs.nodeBook]
   },
-  RUN_SMALL: {
-    name: "run (small save)",
-    description: "Run the solver and save with moderate compression.",
-    inputs: [Inputs.cfrFolder, Inputs.nodeBook]
-  },
   RUN_FULL_SAVE: {
-    name: "run (full save)",
+    name: "run_full_save",
     description: "Run the solver and save complete data including all streets.",
     inputs: [Inputs.cfrFolder, Inputs.nodeBook]
   },
@@ -58,23 +53,18 @@ export const CommandMap: CommandMapType = {
     inputs: [Inputs.cfrFolder, Inputs.nodeBook, Inputs.weights]
   },
   GET_RESULTS: {
-    name: "get results",
+    name: "get_results",
     description: "Calculate and display results from existing solutions without solving again.",
     inputs: [Inputs.cfrFolder, Inputs.nodeBook]
   },
-  SAVE_MINI: {
-    name: "resave micro (no turns)",
-    description: "Compress all unnecessary nodes when saving to minimize file size.",
-    inputs: [Inputs.cfrFolder]
-  },
   SAVE_NO_RIVERS: {
-    name: "resave (no rivers)",
-    description: "Resave files without river information to reduce file size.",
+    name: "save_no_rivers",
+    description: "Resave files without rivers to reduce file size.",
     inputs: [Inputs.cfrFolder]
   },
   SAVE_NO_TURNS: {
-    name: "resave (no turns)",
-    description: "Resave files without turn information to reduce file size.",
+    name: "save_no_turns",
+    description: "Resave files without turns to reduce file size.",
     inputs: [Inputs.cfrFolder]
   },
   NONE: {
@@ -156,7 +146,7 @@ export const currentCommandState = selector({
       if (saveType === 'full') {
         return CommandMap.RUN_FULL_SAVE;
       } else { // tiny
-        return CommandMap.RUN_MINI;
+        return CommandMap.RUN_AUTO;
       }
     }
     

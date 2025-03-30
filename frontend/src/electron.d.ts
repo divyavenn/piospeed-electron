@@ -1,10 +1,28 @@
-interface ElectronAPI {
-  // File operations
-  selectSolverPath: () => Promise<string | null>;
-  selectFile: (options: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>;
-  selectFolder: () => Promise<string | null>;
+export interface AppSettings {
+  solverPath: string | null;
+  cfrFolder: string | null;
+  weights: string | null;
+  nodeBook: string | null;
+  accuracy: number;
+  resultsPath: string | null;
+}
+
+export interface ElectronAPI {
+  showError: (message: string) => void;
+  showDialog: (options: any) => Promise<any>;
+  openFile: (options: any) => Promise<any>;
+  openDirectory: (options: any) => Promise<any>;
+  getConnectionState: () => Promise<string>;
+  validateInput: (input_type: string, value: string) => Promise<any>;
+  runCommand: (command: string, args: string[]) => void;
   
-  // New unified path selection
+  // Store methods
+  getSettings: () => Promise<AppSettings>;
+  saveSettings: (settings: AppSettings) => Promise<void>;
+  
+  // Path methods
+  setSolverPath: (path: string) => Promise<void>;
+  setResultsPath: (path: string) => Promise<void>;
   selectPath: (options?: { 
     type?: 'file' | 'directory' | 'both';
     defaultPath?: string;
@@ -12,38 +30,16 @@ interface ElectronAPI {
     filters?: { name: string; extensions: string[] }[];
   }) => Promise<string | null>;
   
-  // Store operations
-  saveFolderPath: (params: { key: string; path: string }) => Promise<boolean>;
-  getFolderPath: (params: { key: string }) => Promise<string | null>;
-  getFilePath: (params: { key: string }) => Promise<string | null>;
-  getSolverPath: () => Promise<string | null>;
+  // Accuracy methods
+  setAccuracy: (accuracy: number) => Promise<void>;
+  onAccuracyUpdated: (callback: (value: number) => void) => void;
+  removeAccuracyListener: (callback: (value: number) => void) => void;
   
-  // Error dialog
-  showError: (message: string) => Promise<void>;
-  
-  // New settings operations
-  retrieveSettings: () => Promise<{
-    solverPath: string | null;
-    cfrFolder: string | null;
-    weights: string | null;
-    nodeBook: string | null;
-    accuracy: number;
-  }>;
-  setSettings: (settings: {
-    solverPath?: string | null;
-    cfrFolder?: string | null;
-    weights?: string | null;
-    nodeBook?: string | null;
-    accuracy?: number;
-  }) => Promise<{ success: boolean; error?: string }>;
-  
-  // Python bridge operations
+  // Legacy methods (for backward compatibility)
+  retrieveSettings: () => Promise<AppSettings>;
   sendToPython: (message: any) => Promise<void>;
   onPythonMessage: (callback: (data: any) => void) => void;
   removePythonMessageListener: (callback: (data: any) => void) => void;
-  
-  // New method
-  getConnectionState: () => Promise<string>;
 }
 
 declare global {

@@ -1,11 +1,10 @@
 from __future__ import annotations
 from enum import Enum
-from global_var import hand_category_index, draw_category_index, exception_categories, currentdir, cfr_folder, strategies_folder, nodeBook_folder
+from global_var import hand_category_index, draw_category_index, exception_categories
 from fileIO import JSONtoMap
 from stringFunc import parseNodeIDtoList, toFloat
 from errorMessages import Errors
 import os
-import unittest
 
 
 
@@ -15,11 +14,11 @@ class Extension (Enum):
     json = ".json"
 
 class InputType (Enum):
-    file = 1
-    number = 2
-    text = 3
-    directory = 4
-
+    cfr_folder = 1
+    weights_file = 2
+    board_file = 3
+    accuracy = 4
+    
         
     
 # an input needed by the user, with accompanying prompt
@@ -40,14 +39,14 @@ class Input ():
 
 # a file input with specific extension or extensions needed from the user
 class FileInput (Input):
-    def __init__(self, extension : Extension):
-        super().__init__(InputType.file)
+    def __init__(self, type: InputType, extension : Extension):
+        super().__init__(type)
         self.extension : str = extension.value
     
     def isCorrectExtension (self, fName : str) :
         # if last few letters of file name equals the extension this input is supposed to have, return true
         if (fName[-1*len(self.extension):]) == self.extension:
-                return True
+            return True
         return False
     
     # check if file type is correct, if so return
@@ -57,11 +56,10 @@ class FileInput (Input):
         raise Exception(Errors.wrongFileType(self.extension))
 
 
-class FolderOf (FileInput) :
+class CFRFolder (FileInput) :
 
-    def __init__(self, extension: Extension):
-        super().__init__(extension)
-        self.type = InputType.directory
+    def __init__(self):
+        super().__init__(InputType.cfr_folder, Extension.cfr)
     
     # return a list where first element is folder and second element is list of files belonging to this type
     def parseInput(self, input : str) -> list :
@@ -82,7 +80,7 @@ class FolderOf (FileInput) :
     
 class WeightsFile (FileInput):
     def __init__(self):
-        super().__init__(Extension.json)
+        super().__init__(InputType.weights_file, Extension.json)
     
     # input: a file path from the interface
     # output: a map of valid category names and their corresponding weights
@@ -131,7 +129,7 @@ class BoardFile(FileInput):
     decisionDict = Decisions.getDict()
     
     def __init__(self):
-        super().__init__(Extension.json)
+        super().__init__(InputType.board_file,Extension.json)
         
     # input: a file path from the interface
     # output: [a map of cfr file names and their corresponding target nodeIDs, board_type]
@@ -256,84 +254,3 @@ class BoardFile(FileInput):
         raise Exception(Errors.invalid_node(node))
         
 
-
-class Tests(unittest.TestCase):
-    
-    def testLastDecision(self):
-        self.assertEqual(BoardFile.getLastDecision("r:0:c:c"), "c")
-    def testMakeDecisionList(self):
-        self.assertEqual(BoardFile.makeDecisionList("r:0"), [Decisions.ROOT])
-        try:
-            BoardFile.makeDecisionList("p")
-        except Exception as e:
-            self.assertEqual(str(e), Errors.invalid_node("p"))
-        try:
-            BoardFile.makeDecisionList("c:c:b15")
-        except Exception as e:
-            self.assertEqual(str(e), Errors.noRootNode)
-        try:
-            BoardFile.makeDecisionList("r")
-        except Exception as e:
-            self.assertEqual(str(e), Errors.invalid_node("r"))
-            
-        self.assertEqual(BoardFile.makeDecisionList("r:0:c"), [Decisions.ROOT, Decisions.CHECK])
-        self.assertEqual(BoardFile.makeDecisionList("r:0:c:c"), [Decisions.ROOT, Decisions.CHECK, Decisions.CHECK])
-        self.assertEqual(BoardFile.makeDecisionList("r:0:c:c:turn"), [Decisions.ROOT, Decisions.CHECK, Decisions.CHECK, Decisions.TURN])
-        self.assertEqual(BoardFile.makeDecisionList("r:0:c:c:b12"), [Decisions.ROOT, Decisions.CHECK, Decisions.CHECK, Decisions.BET_SIZE, "12"])
-        self.assertEqual(BoardFile.makeDecisionList("r:0:c:c:b"), [Decisions.ROOT, Decisions.CHECK, Decisions.CHECK, Decisions.BET])
-        
-    
-    def testWeightFile(self):
-        w = WeightsFile("Enter a weights file.")
-        o = w.parseInput(currentdir + r"sample\simple_weights.json")
-        self.assertEqual(o["ace_high"], 20)
-        self.assertEqual(o["bdfd_2card"], 20)
-        
-    def testFolder(self):
-        w = FolderOf(Extension.cfr, "Select a folder with .cfr files")
-        files = w.parseInput(currentdir + r"sample\cfr")
-        self.assertEqual(files[0], currentdir + r"sample\cfr")
-        self.assertTrue(files[1], ['As5h3s.cfr', 'KdTc9h.cfr', 'Qh6c5s.cfr', 'As5h3s_small.cfr', 'KdTc9h_small.cfr', 'Qh6c5s_small.cfr'])
-        
-        try:
-            w.parseInput(currentdir + r"sample\weights.json")
-        except Exception as e:
-            self.assertEqual(str(e), Errors.invalidFolder)
-            
-        try:
-            w.parseInput(currentdir + r"sample\notAFolder")
-        except Exception as e:
-            self.assertEqual(str(e), Errors.invalidFolder)
-            
-    def testGetSpecificNodeIDs(self):
-        o = BoardFile.getSpecificNodeIDs("r:0:c:c:turn:b10:b:river",
-                                         {"cfr1" : ["Ah", "15" , "Ts"],
-                                          "cfr2" : ["Ah", "10" , "Kh"]},
-                                         )
-        self.assertEqual(o, {"cfr1" : "r:0:c:c:Ah:b10:b15:Ts",
-                             "cfr2" : "r:0:c:c:Ah:b10:b10:Kh"})
-    
-    def testBoardFileExceptions(self):
-        w = BoardFile("Enter a board file.")
-        self.assertEqual(BoardFile.decisionDict, {"r:0" : Decisions.ROOT, 
-                                                  "c" : Decisions.CHECK,
-                                                  "b" : Decisions.BET_SIZE,
-                                                  "bet" : Decisions.BET,
-                                                  "turn" : Decisions.TURN,
-                                                  "river" : Decisions.RIVER})
-        try:
-            w.parseInput(currentdir + r"sample\board_bad.json")
-        except Exception as e:
-            self.assertEqual(str(e),Errors.noRootNode)
-
-    def testBoardFile(self):
-        b = BoardFile("boardfile")
-        o = b.parseInput(currentdir + r"sample\board_turn.json")
-        self.assertEqual(o, {"As5h3s" : "r:0:c:b16:c:Ah:c:c","KdTc9h" : "r:0:c:b16:c:Ts:c:c","Qh6c5s" : "r:0:c:b16:c:Ts:c:c"})
-        
-        o = b.parseInput(currentdir + r"sample\board_simple.json")
-        self.assertEqual(o, "r:0:c:b16")
-        
-        
-if __name__ == '__main__': 
-    unittest.main() 

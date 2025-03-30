@@ -13,6 +13,7 @@ export interface AppSettings {
   weights: string | null;
   nodeBook: string | null;
   accuracy: number;
+  resultsPath: string | null;
 }
 
 interface SettingsModalProps {
@@ -105,6 +106,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     weights: null,
     nodeBook: null,
     accuracy: 0.02,
+    resultsPath: null,
   });
 
   // Initialize form with current settings
@@ -121,14 +123,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     
     // Handle accuracy as a number
     if (name === 'accuracy') {
-      const numValue = parseFloat(value);
-      if (!isNaN(numValue)) {
-        setFormValues(prev => ({ ...prev, [name]: numValue }));
-      }
+      const handleAccuracyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value) && value > 0 && value < 1) {
+          setFormValues({ ...formValues, accuracy: value });
+          window.electron.setAccuracy(value);
+        }
+      };
+      handleAccuracyChange(e);
     } else {
       setFormValues(prev => ({ ...prev, [name]: value }));
     }
   };
+
+  useEffect(() => {
+    const handleAccuracyUpdate = (value: number) => {
+      setFormValues(prev => ({ ...prev, accuracy: value }));
+    };
+
+    window.electron.onAccuracyUpdated(handleAccuracyUpdate);
+
+    return () => {
+      window.electron.removeAccuracyListener(handleAccuracyUpdate);
+    };
+  }, []);
 
   const handleSelectPath = async (key: keyof AppSettings) => {
     let path: string | null = null;
@@ -143,7 +161,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           { name: 'Executables', extensions: ['exe', ''] }, // Empty string for macOS/Linux executables
         ]
       });
-    } else if (key === 'cfrFolder' || key === 'weights' || key === 'nodeBook') {
+    } else if (key === 'cfrFolder' || key === 'weights' || key === 'nodeBook' || key === 'resultsPath') {
       // For folders, we want to select a directory
       path = await window.electron.selectPath({
         type: 'directory',
@@ -213,7 +231,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           <PathContainer>
             <Input 
               label="Strategies Folder" 
-              name="strategiesFolder"
+              name="weights"
               value={formValues.weights || ''}
               onChange={handleChange}
               disabled
@@ -228,12 +246,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           <PathContainer>
             <Input 
               label="NodeBook Folder" 
-              name="nodeBookFolder"
+              name="nodeBook"
               value={formValues.nodeBook || ''}
               onChange={handleChange}
               disabled
             />
             <SearchIconButton onClick={() => handleSelectPath('nodeBook')} title="Browse for NodeBook Folder">
+              <FaSearch size={16} />
+            </SearchIconButton>
+          </PathContainer>
+        </PathRow>
+        <PathRow>
+          <PathContainer>
+            <Input 
+              label="Results Folder" 
+              name="resultsPath"
+              value={formValues.resultsPath || ''}
+              onChange={handleChange}
+              disabled
+            />
+            <SearchIconButton onClick={() => handleSelectPath('resultsPath')} title="Browse for Results Folder">
               <FaSearch size={16} />
             </SearchIconButton>
           </PathContainer>

@@ -3,13 +3,14 @@ import {MessageQueue, ConnectionState} from './messageQueue';
 import Store from 'electron-store';
 import { AppSettings } from '../src/components/Settings/SettingsModal';
 
+const store = new Store();
+
 /**
  * Sets up IPC handlers for communication between the renderer process and the main process.
  * 
  * @param messageQueue The message queue used for communication with Python.
- * @param store The Electron store used for storing application data.
  */
-export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void {
+export function setupIpcHandlers(messageQueue: MessageQueue): void {
   /**
    * Handler for sending messages from the renderer process to Python.
    * 
@@ -156,4 +157,52 @@ export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void
       buttons: ['OK']
     });
   });
+
+  /**
+   * Get settings from electron-store
+   */
+  ipcMain.handle('get-settings', async () => {
+    return {
+      solverPath: store.get('solverPath', null),
+      cfrFolder: store.get('cfrFolder', null),
+      weights: store.get('weights', null),
+      nodeBook: store.get('nodeBook', null),
+      accuracy: store.get('accuracy', 0.02),
+      resultsPath: store.get('resultsPath', null),
+    };
+  });
+
+  /**
+   * Save settings to electron-store
+   */
+  ipcMain.handle('save-settings', async (event, settings) => {
+    for (const [key, value] of Object.entries(settings)) {
+      store.set(key, value);
+    }
+  });
+
+  /**
+   * Set the solver path and send it to Python
+   */
+  ipcMain.handle('set-solver-path', async (event, path) => {
+    store.set('solverPath', path);
+    await messageQueue.send({ type: 'solverPath', data: path });
+  });
+
+  /**
+   * Set the results path and send it to Python
+   */
+  ipcMain.handle('set-results-path', async (event, path) => {
+    store.set('resultsPath', path);
+    await messageQueue.send({ type: 'resultsPath', data: path });
+  });
+
+  /**
+   * Set the accuracy and send it to Python
+   */
+  ipcMain.handle('set-accuracy', async (event, accuracy) => {
+    store.set('accuracy', accuracy);
+    await messageQueue.send({ type: 'accuracy', data: accuracy });
+  });
+
 }

@@ -15084,7 +15084,8 @@ class MessageQueue extends require$$5.EventEmitter {
     this.cleanupExistingConnection();
   }
 }
-function setupIpcHandlers(messageQueue2, store2) {
+const store = new Store();
+function setupIpcHandlers(messageQueue2) {
   require$$1$2.ipcMain.handle("send-to-python", async (_, message) => {
     try {
       await messageQueue2.send(message);
@@ -15109,7 +15110,7 @@ function setupIpcHandlers(messageQueue2, store2) {
   require$$1$2.ipcMain.handle("set-settings", (_, settings) => {
     try {
       Object.entries(settings).forEach(([key, value]) => {
-        store2.set(key, value);
+        store.set(key, value);
       });
       return { success: true, message: "Settings updated successfully" };
     } catch (error2) {
@@ -15119,11 +15120,11 @@ function setupIpcHandlers(messageQueue2, store2) {
   });
   require$$1$2.ipcMain.handle("retrieve-settings", () => {
     return {
-      solverPath: store2.get("solverPath") || null,
-      cfrFolder: store2.get("cfrFolder") || null,
-      weights: store2.get("weights") || null,
-      nodeBook: store2.get("nodeBook") || null,
-      accuracy: store2.get("accuracy") || 0.02
+      solverPath: store.get("solverPath") || null,
+      cfrFolder: store.get("cfrFolder") || null,
+      weights: store.get("weights") || null,
+      nodeBook: store.get("nodeBook") || null,
+      accuracy: store.get("accuracy") || 0.02
     };
   });
   require$$1$2.ipcMain.handle("select-path", async (_, options) => {
@@ -15149,8 +15150,35 @@ function setupIpcHandlers(messageQueue2, store2) {
       buttons: ["OK"]
     });
   });
+  require$$1$2.ipcMain.handle("get-settings", async () => {
+    return {
+      solverPath: store.get("solverPath", null),
+      cfrFolder: store.get("cfrFolder", null),
+      weights: store.get("weights", null),
+      nodeBook: store.get("nodeBook", null),
+      accuracy: store.get("accuracy", 0.02),
+      resultsPath: store.get("resultsPath", null)
+    };
+  });
+  require$$1$2.ipcMain.handle("save-settings", async (event, settings) => {
+    for (const [key, value] of Object.entries(settings)) {
+      store.set(key, value);
+    }
+  });
+  require$$1$2.ipcMain.handle("set-solver-path", async (event, path2) => {
+    store.set("solverPath", path2);
+    await messageQueue2.send({ type: "solverPath", data: path2 });
+  });
+  require$$1$2.ipcMain.handle("set-results-path", async (event, path2) => {
+    store.set("resultsPath", path2);
+    await messageQueue2.send({ type: "resultsPath", data: path2 });
+  });
+  require$$1$2.ipcMain.handle("set-accuracy", async (event, accuracy) => {
+    store.set("accuracy", accuracy);
+    await messageQueue2.send({ type: "accuracy", data: accuracy });
+  });
 }
-const store = new Store();
+new Store();
 let mainWindow = null;
 let pythonProcess = null;
 let messageQueue = null;
@@ -15207,14 +15235,12 @@ function startPythonProcess() {
       if (messageQueue) {
         messageQueue.pythonExited();
       }
+      require$$1$2.app.exit(1);
     });
     pythonProcess.on("exit", (code2) => {
       console.log(`Python process exited with code ${code2}`);
       if (code2 !== 0) {
-        console.log("Python process failed, forcing app to quit in 2 seconds...");
-        setTimeout(() => {
-          require$$1$2.app.exit(1);
-        }, 2e3);
+        require$$1$2.app.exit(1);
       }
       pythonProcess = null;
     });
@@ -15223,6 +15249,7 @@ function startPythonProcess() {
       if (messageQueue) {
         messageQueue.pythonExited();
       }
+      require$$1$2.app.exit(1);
     });
   } catch (error2) {
     console.error("Error starting Python process:", error2);
@@ -15244,7 +15271,7 @@ require$$1$2.app.whenReady().then(async () => {
   await messageQueue.connect();
   if (!mainWindow) {
     mainWindow = await createWindow();
-    setupIpcHandlers(messageQueue, store);
+    setupIpcHandlers(messageQueue);
   }
 });
 require$$1$2.app.on("window-all-closed", () => {
