@@ -268,7 +268,7 @@ const RecoilApp: React.FC = () => {
       await window.electron.sendToPython({
         type: 'command',
         data: {
-          type: Object.keys(CommandMap).find(key => CommandMap[key].name === currentCommand.name) || 'NONE',
+          type: currentCommand.name,
           args: collectedInputs
         }
       });

@@ -46,16 +46,16 @@ class PluginCommands(Enum):
                        "Allows you to nodelock a folder of files at once.")
     
     GET_RESULTS = Command("get_results",
-                        [CFRFolder(),
-                        BoardFile()],
+                  [CFRFolder(),
+                   BoardFile()],
                         "")
-
+    
     SAVE_NO_RIVERS = Command("save_no_rivers",
-                            [CFRFolder()],
+                  [CFRFolder()],
                             "")
-
+    
     SAVE_NO_TURNS = Command("save_no_turns",
-                            [CFRFolder()],
+                  [CFRFolder()],
                             "")
     
     SET_ACCURACY = Command("set_accuracy", [Input(InputType.accuracy)],

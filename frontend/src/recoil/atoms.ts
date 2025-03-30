@@ -181,7 +181,7 @@ export const commandDescriptionState = selector({
       case 'run_auto':
         return `Run the solver on the selected files to an accuracy of ${accuracy} and compress all unnecessary nodes when saving.`;
       case 'run_full_save':
-        return `Run the solver to an accuracy of ${accuracy} and save complete data including all streets (Accuracy: ${accuracy})`;
+        return `Run the solver to an accuracy of ${accuracy} and save complete data including all streets`;
       case 'nodelock':
         return 'Apply nodelocking to a folder of files without solving';
       case 'get_results':
