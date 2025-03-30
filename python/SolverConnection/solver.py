@@ -8,6 +8,8 @@ printConsole = False
 class SolverException(Exception):
     pass
 
+
+    
 class Solver(object):
     
 
@@ -85,3 +87,7 @@ class Solver(object):
         if not line:
             raise Exception("Unexpected end of output.")
         return line
+
+
+class TestSolver(Solver):
+      

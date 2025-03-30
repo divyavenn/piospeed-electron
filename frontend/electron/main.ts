@@ -90,6 +90,17 @@ function startPythonProcess() {
       }
     });
 
+    pythonProcess.on('exit', (code) => {
+      console.log(`Python process exited with code ${code}`);
+      if (code !== 0) {
+        console.log('Python process failed, forcing app to quit in 2 seconds...');
+        setTimeout(() => {
+          app.exit(1);
+        }, 2000);
+      }
+      pythonProcess = null;
+    });
+
     pythonProcess.on('close', (code: number) => {
       console.log(`Python process exited with code ${code}`);
       if (messageQueue) {
@@ -116,13 +127,26 @@ app.whenReady().then(async () => {
   
   // Create and connect MessageQueue
   messageQueue = new MessageQueue();
+  
+  // Set up event handlers before connecting
+  messageQueue.on('retries-exhausted', () => {
+    console.log('Connection retries exhausted, quitting app...');
+    if (pythonProcess) {
+      pythonProcess.kill();
+      pythonProcess = null;
+    }
+    app.quit();
+  });
+  
   await messageQueue.connect();
   
-  // Create the window
-  mainWindow = await createWindow();
+  // Create the window if it doesn't exist
+  if (!mainWindow) {
+    mainWindow = await createWindow();
 
-  // Set up IPC handlers
-  setupIpcHandlers(messageQueue, store);
+    // Set up IPC handlers only once
+    setupIpcHandlers(messageQueue, store);
+  }
   
 });
 

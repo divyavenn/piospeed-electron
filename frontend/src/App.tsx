@@ -70,17 +70,32 @@ const RecoilApp: React.FC = () => {
   const [nodelock, setNodelock] = useRecoilState(nodelockState);
 
   
-  // Check solver path on component mount
+  // Check connection state on component mount
   useEffect(() => {
+    const checkConnectionAndSendSolver = async () => {
+      // Check if already connected
+      console.log('Checking connection state...');
+      const state = await window.electron.getConnectionState();
+      if (state === 'READY') {
+        console.log('Python backend is ready');
+        setCurrentStep('Python backend is ready');
+        // Send solver path if it exists
+        const settings = await window.electron.retrieveSettings();
+        if (settings?.solverPath) {
+          await window.electron.sendToPython({
+            type: 'solverPath',
+            data: settings.solverPath
+          });
+        }
+      }
+    };
+    
+    // Check initial state
+    checkConnectionAndSendSolver();
     
     // Listen for messages from Python
-    const handlePythonMessage = (data: any) => {
+    const handlePythonMessage = async (data: any) => {
       console.log('Received message from Python:', data);
-      
-      // Handle ready message
-      if (data.type === 'ready') {
-        setCurrentStep('Python backend is ready');
-      }
       
       // Handle notifications from Python
       if (data.type === 'notification') {
@@ -98,7 +113,6 @@ const RecoilApp: React.FC = () => {
         setIsRunning(false);
         setCurrentStep(`Error: ${data.data}`);
       }
-      
     };
 
     window.electron.onPythonMessage(handlePythonMessage);
@@ -144,9 +158,6 @@ const RecoilApp: React.FC = () => {
       // Get required inputs for the command
       const requiredInputs = currentCommand.inputs || [];
       const collectedInputs: string[] = [];
-      
-      // Get saved paths from settings
-      const settings = await window.electron.retrieveSettings();
       
       // Process inputs sequentially with validation
       for (let i = 0; i < requiredInputs.length; i++) {

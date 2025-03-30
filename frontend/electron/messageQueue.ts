@@ -92,6 +92,7 @@ export class MessageQueue extends EventEmitter {
       
       if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
         console.error("Max reconnection attempts reached. Giving up.");
+        this.emit('retries-exhausted');
         this.stop();
       } else {
         // Schedule reconnect
@@ -203,6 +204,7 @@ export class MessageQueue extends EventEmitter {
       this.scheduleReconnect();
     } else {
       console.log('Max reconnection attempts reached or Python process exited');
+      this.emit('retries-exhausted');
       this.stop();
     }
   }

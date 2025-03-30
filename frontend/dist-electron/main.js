@@ -14952,6 +14952,7 @@ class MessageQueue extends require$$5.EventEmitter {
       console.warn(`Reconnect attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} failed.`);
       if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
         console.error("Max reconnection attempts reached. Giving up.");
+        this.emit("retries-exhausted");
         this.stop();
       } else {
         this.scheduleReconnect();
@@ -15038,6 +15039,7 @@ class MessageQueue extends require$$5.EventEmitter {
       this.scheduleReconnect();
     } else {
       console.log("Max reconnection attempts reached or Python process exited");
+      this.emit("retries-exhausted");
       this.stop();
     }
   }
@@ -15102,7 +15104,7 @@ function setupIpcHandlers(messageQueue2, store2) {
     });
   });
   require$$1$2.ipcMain.handle("get-connection-state", () => {
-    return messageQueue2.getConnectionState();
+    return ConnectionState[messageQueue2.getConnectionState()];
   });
   require$$1$2.ipcMain.handle("set-settings", (_, settings) => {
     try {
@@ -15206,6 +15208,16 @@ function startPythonProcess() {
         messageQueue.pythonExited();
       }
     });
+    pythonProcess.on("exit", (code2) => {
+      console.log(`Python process exited with code ${code2}`);
+      if (code2 !== 0) {
+        console.log("Python process failed, forcing app to quit in 2 seconds...");
+        setTimeout(() => {
+          require$$1$2.app.exit(1);
+        }, 2e3);
+      }
+      pythonProcess = null;
+    });
     pythonProcess.on("close", (code2) => {
       console.log(`Python process exited with code ${code2}`);
       if (messageQueue) {
@@ -15221,9 +15233,19 @@ require$$1$2.app.whenReady().then(async () => {
   startPythonProcess();
   await new Promise((resolve2) => setTimeout(resolve2, 1e3));
   messageQueue = new MessageQueue();
+  messageQueue.on("retries-exhausted", () => {
+    console.log("Connection retries exhausted, quitting app...");
+    if (pythonProcess) {
+      pythonProcess.kill();
+      pythonProcess = null;
+    }
+    require$$1$2.app.quit();
+  });
   await messageQueue.connect();
-  mainWindow = await createWindow();
-  setupIpcHandlers(messageQueue, store);
+  if (!mainWindow) {
+    mainWindow = await createWindow();
+    setupIpcHandlers(messageQueue, store);
+  }
 });
 require$$1$2.app.on("window-all-closed", () => {
   console.log("Window closed, cleaning up...");

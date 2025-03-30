@@ -41,6 +41,9 @@ interface ElectronAPI {
   sendToPython: (message: any) => Promise<void>;
   onPythonMessage: (callback: (data: any) => void) => void;
   removePythonMessageListener: (callback: (data: any) => void) => void;
+  
+  // New method
+  getConnectionState: () => Promise<string>;
 }
 
 declare global {

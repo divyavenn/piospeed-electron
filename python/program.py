@@ -1,7 +1,7 @@
 from __future__ import annotations
 from menu import PluginCommands, Command
 from treeops import TreeOperator
-from inputs import WeightsFile, BoardFile, Board, InputMetadata
+from inputs import WeightsFile, BoardFile, Board
 from stringFunc import removeExtension, timestamp, toFloat, get_file_name_from_path
 from SolverConnection.solver import Solver
 from solverCommands import SolverCommmand
@@ -16,7 +16,7 @@ consoleLog = True
 
 class Program:
     
-    def __init__(self, connection: Solver, notify_func: Callable[[str], None], get_input_func: Optional[Callable] = None):
+    def __init__(self, connection: Solver, notify_func: Callable[[str], None]):
         """
         Initialize the Program with a solver connection and notification function
         
@@ -29,7 +29,6 @@ class Program:
         self.command = SolverCommmand(connection)
         # Replace interface with direct function calls
         self.notify = notify_func
-        self.get_input = get_input_func
         
         # Add pending command and arguments
         self.pending_command = None
@@ -368,7 +367,6 @@ class Program:
         self.connection.exit()
         self.notify("Closing connection to solver...done!")
 
-    
         
 if __name__ == '__main__': 
     unittest.main() 

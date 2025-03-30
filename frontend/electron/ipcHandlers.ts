@@ -70,7 +70,7 @@ export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void
    * → React app receives the state as a Promise result
    */
   ipcMain.handle('get-connection-state', () => {
-    return messageQueue.getConnectionState();
+    return ConnectionState[messageQueue.getConnectionState()];
   });
 
   /**

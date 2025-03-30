@@ -2,10 +2,10 @@ import json
 import traceback
 import os
 import asyncio
-from SolverConnection.solver import Solver
+from SolverConnection.testSolver import Solver
 from Message import Message
 from inputs import FolderOf, WeightsFile, BoardFile, Extension
-# Import Program when needed to avoid circular imports
+from testProgram import Program
 
 
 class MessageQueue:
@@ -126,11 +126,9 @@ class MessageQueue:
                             connection = Solver(message.data)
                             await self.send(Message('solver ready', connection))
                             # Create Program with notify function
-                            from program import Program
                             self.program = Program(
                                 connection=connection,
                                 notify_func=self.notify_sync,
-                                get_input_func=None
                             )
                             # Add send_message method to program
                             self.program.send_message = self.send
@@ -166,7 +164,7 @@ class MessageQueue:
                                 
                                 if command:
                                     # Set the command and args
-                                    self.program.set_command(command, args)
+                                    self.program.command(command, args)
                                     # Run the command asynchronously
                                     asyncio.create_task(self.program.commandRun())
                                     await self.send(Message('command_started', command_name))
@@ -198,8 +196,8 @@ class MessageQueue:
                             # Map input type to the appropriate Input class
                             input_class_map = {
                                 'cfr_folder': FolderOf(Extension.cfr).parseInput,
-                                'weights_file': WeightsFile.parseInput,
-                                'board_file': BoardFile.parseInput,
+                                'weights_file': WeightsFile().parseInput,
+                                'board_file': BoardFile().parseInput,
                             }
                             
                             # Get the appropriate validation method
