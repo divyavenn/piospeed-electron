@@ -37,6 +37,7 @@ class Program:
         #maintain a mapping of the commands to the functions that run them
         self.commandDispatcher : dict[Command, Callable[[list[str]], None]] = { 
             PluginCommands.NODELOCK_SOLVE: self.nodelock_solve,
+            PluginCommands.NODELOCK_SOLVE_MINI: self.nodelock_solve_mini,
             PluginCommands.RUN_AUTO: self.solve,
             PluginCommands.RUN_FULL_SAVE: self.solve_full,
             PluginCommands.NODELOCK: self.nodelock,
@@ -50,6 +51,9 @@ class Program:
         while True:
             await self.commandRun()    
     
+    def nodelock_solve_mini(self, args : list[str]):
+        self.nodelock_get_results_save(args, solve=True, auto_size=True)
+        
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     def resave_no_turns(self, args : list [str]):
@@ -339,7 +343,7 @@ class Program:
     # args[1] : map of category names -> weights
     # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
     def nodelock_solve(self, args : list[str]):
-        self.nodelock_get_results_save(args, solve=True, auto_size=True)
+        self.nodelock_get_results_save(args, solve=True, auto_size=False)
         
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files

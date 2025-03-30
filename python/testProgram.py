@@ -31,6 +31,7 @@ class Program:
         # Initialize command dispatcher
         self.commandDispatcher = {
             PluginCommands.NODELOCK_SOLVE: self.nodelock_solve,
+            PluginCommands.NODELOCK_SOLVE_MINI: self.nodelock_solve_mini,
             PluginCommands.RUN_AUTO: self.solve,
             PluginCommands.RUN_FULL_SAVE: self.solve_full,
             PluginCommands.NODELOCK: self.nodelock,
@@ -117,7 +118,7 @@ class Program:
             msg = "Saved to: " + savePath
             if (save_type):
                 msg = "Saved to: " + savePath + " using " + save_type
-            self.notify(msg)
+                self.notify(msg)
                     
             #append results for this cfr to csv
             toCSV.append(["", "", "", "", "", "", "", "", ""])

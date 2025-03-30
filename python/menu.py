@@ -23,6 +23,12 @@ class PluginCommands(Enum):
                         BoardFile()],
                        "Allows you to nodelock a folder of files at once.")
     
+    NODELOCK_SOLVE_MINI = Command("nodelock_solve_mini",
+                       [CFRFolder(),
+                        WeightsFile(),
+                        BoardFile()],
+                       "Allows you to nodelock a folder of files at once.")
+    
     RUN_AUTO = Command("run_auto", 
                   [CFRFolder(),
                    BoardFile()],

@@ -22,7 +22,7 @@ import {
   SaveType,
   AnimationState,
   Inputs,
-  getCommandDescription
+  commandDescriptionState
 } from './recoil/atoms'; 
 
 import {
@@ -70,6 +70,7 @@ const RecoilApp: React.FC = () => {
   const [solveType, setSolveType] = useRecoilState(solveTypeState);
   const [saveType, setSaveType] = useRecoilState(saveTypeState);
   const [nodelock, setNodelock] = useRecoilState(nodelockState);
+  const commandDescription = useRecoilValue(commandDescriptionState);
 
   const handleSettingsSubmit = async (newSettings: AppSettings) => {
     try {
@@ -267,7 +268,7 @@ const RecoilApp: React.FC = () => {
       await window.electron.sendToPython({
         type: 'command',
         data: {
-          type: currentCommand.name,
+          type: Object.keys(CommandMap).find(key => CommandMap[key].name === currentCommand.name) || 'NONE',
           args: collectedInputs
         }
       });
@@ -324,7 +325,7 @@ const RecoilApp: React.FC = () => {
                 <DescriptionText $animate={animation}>
                   {!isSolverPathSet 
                     ? "Select a piosolver executable in settings" 
-                    : getCommandDescription(currentCommand)}
+                    : commandDescription}
                 </DescriptionText>
                 
                 <CommandPalette $animate={animation}>

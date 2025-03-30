@@ -5,6 +5,8 @@ import Input from '../UI/Input';
 import Button from '../UI/Button';
 import PathDisplay from '../UI/PathDisplay';
 import { FaSearch } from 'react-icons/fa';
+import { useRecoilState } from 'recoil';
+import { accuracyState } from '../../recoil/atoms';
 
 // Settings configuration interface
 export interface AppSettings {
@@ -108,6 +110,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     accuracy: 0.02,
     resultsPath: null,
   });
+  const [, setAccuracy] = useRecoilState(accuracyState);
 
   // Initialize form with current settings
   useEffect(() => {
@@ -123,14 +126,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     
     // Handle accuracy as a number
     if (name === 'accuracy') {
-      const handleAccuracyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseFloat(e.target.value);
-        if (!isNaN(value) && value > 0 && value < 1) {
-          setFormValues({ ...formValues, accuracy: value });
-          window.electron.setAccuracy(value);
-        }
-      };
-      handleAccuracyChange(e);
+      const numValue = value === '' ? 0 : parseFloat(value);
+      if (!isNaN(numValue) && numValue > 0 && numValue < 1) {
+        setFormValues(prev => ({ ...prev, accuracy: numValue }));
+        setAccuracy(numValue);
+        window.electron.setAccuracy(numValue);
+      }
     } else {
       setFormValues(prev => ({ ...prev, [name]: value }));
     }
@@ -187,7 +188,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       }
     }
   };
-  const handleSave = () => {
+
+  const handleSave = async () => {
+    const accuracy = parseFloat(formValues.accuracy.toString());
+    if (isNaN(accuracy) || accuracy <= 0 || accuracy >= 1) {
+      await window.electron.showError('Accuracy must be between 0 and 1');
+      return;
+    }
+    
+    setAccuracy(accuracy);
+    await window.electron.setAccuracy(accuracy);
+
     console.log('Saving settings:', formValues);
     onSaveSettings(formValues);
     onClose();
@@ -274,9 +285,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           label="Accuracy (as a fraction of pot, e.g. 0.02)" 
           name="accuracy"
           type="number"
-          step="0.01"
-          min="0.001"
-          max="0.1"
           value={formValues.accuracy.toString()}
           onChange={handleChange}
         />

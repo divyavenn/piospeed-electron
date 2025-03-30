@@ -147,7 +147,6 @@ class MessageQueue:
                             try:
                                 accuracy = float(message.data)
                                 self.program.update_accuracy(accuracy)
-                                await self.send(Message('accuracy', accuracy))
                             except ValueError:
                                 await self.send(Message('error', 'Invalid accuracy value'))
                         else:

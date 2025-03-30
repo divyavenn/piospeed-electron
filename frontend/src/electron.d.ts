@@ -32,8 +32,6 @@ export interface ElectronAPI {
   
   // Accuracy methods
   setAccuracy: (accuracy: number) => Promise<void>;
-  onAccuracyUpdated: (callback: (value: number) => void) => void;
-  removeAccuracyListener: (callback: (value: number) => void) => void;
   
   // Legacy methods (for backward compatibility)
   retrieveSettings: () => Promise<AppSettings>;
