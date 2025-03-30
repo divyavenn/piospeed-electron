@@ -19,7 +19,7 @@ const Button = styled.button`
   justify-content: center;
   cursor: pointer;
   z-index: 100;
-  transition: ${({ theme }) => theme.transitions.normal};
+  transition: all 0.3s ease;
   
   &:hover {
     background: ${({ theme }) => theme.colors.surfaceBorder};
@@ -43,4 +43,4 @@ const SettingsButton: React.FC<SettingsButtonProps> = ({ onClick }) => {
   );
 };
 
-export default SettingsButton; 
+export default SettingsButton;

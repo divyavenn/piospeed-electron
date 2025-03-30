@@ -62,10 +62,12 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   // Save settings to electron-store
   const saveSettings = async (newSettings: AppSettings) => {
     try {
+      console.log('Saving settings to electron-store:', newSettings);
       // Save all settings at once using the new method
       const result = await window.electron.setSettings(newSettings);
       
       if (result.success) {
+        console.log('Settings saved successfully, updating state');
         // Update state
         setSettings(newSettings);
       } else {

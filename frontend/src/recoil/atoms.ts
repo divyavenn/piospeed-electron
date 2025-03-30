@@ -1,7 +1,7 @@
 import { atom, selector } from 'recoil';
 
 // Types
-export type SaveType = 'full' | 'mini' | 'tiny';
+export type SaveType = 'full' | 'mini';
 export type SolveType = 'none' | 'solve' | 'getResults';
 export type AnimationState = 'intro' | 'moveUp' | 'commandPalette';
 
@@ -11,9 +11,9 @@ export const CommandMap = {
     name: "nodelock and run",
     description: "Nodelock a folder of files and run the solver with the specified accuracy."
   },
-  RUN_AUTO: {
+  RUN_MINI: {
     name: "run",
-    description: "Run the solver on the selected files and save with regular settings."
+    description: "Run the solver on the selected files and compress all unnecessary nodes when saving"
   },
   RUN_FULL_SAVE: {
     name: "run (full save)",
@@ -27,13 +27,9 @@ export const CommandMap = {
     name: "get results",
     description: "Calculate and display results from existing solutions without solving again."
   },
-  SAVE_NO_RIVERS: {
-    name: "resave small (no rivers)",
-    description: "Resave existing solutions without river data for smaller file size."
-  },
-  SAVE_NO_TURNS: {
+  SAVE_MINI: {
     name: "resave micro (no turns)",
-    description: "Resave existing solutions without turn and river data for minimal file size."
+    description: "Compress all unnecessary nodes when saving to minimize file size."
   },
   NONE: {
     name: "none",
@@ -113,17 +109,17 @@ export const currentCommandState = selector({
     if (solveType === 'solve') {
       if (saveType === 'full') {
         return CommandMap.RUN_FULL_SAVE;
-      } else if (saveType === 'mini') {
-        return CommandMap.RUN_AUTO;
+      } else if (saveType === 'small') {
+        return CommandMap.RUN_SMALL;
       } else { // tiny
-        return CommandMap.SAVE_NO_TURNS;
+        return CommandMap.RUN_MINI;
       }
     }
     
     if (solveType === 'none') {
-      if (saveType === 'mini') {
+      if (saveType === 'small') {
         return CommandMap.SAVE_NO_RIVERS;
-      } else if (saveType === 'tiny') {
+      } else if (saveType === 'mini') {
         return CommandMap.SAVE_NO_TURNS;
       }
     }

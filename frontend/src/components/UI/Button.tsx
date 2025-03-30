@@ -22,7 +22,8 @@ const StyledButton = styled.button<{
   cursor: pointer;
   font-size: ${({ theme }) => theme.sizes.normal};
   font-weight: 500;
-  transition: ${({ theme }) => theme.transitions.normal};
+  box-shadow: ${({ theme }) => theme.shadows.small};
+  transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;

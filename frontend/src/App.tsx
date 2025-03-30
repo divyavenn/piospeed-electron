@@ -27,9 +27,9 @@ import {
   CenteredHeaderContainer,
   TaglineWrapper,
   MainContent,
+  Toggles,
   ContentSection,
   LoadingScreen,
-  DescriptionText,
   CommandPalette,
   ToggleGroup,
   ToggleLabel,
@@ -45,6 +45,7 @@ import {
   CommandDescriptionText,
   Tagline,
   ErrorText,
+  DescriptionText,
 } from './styles/AppStyles';
 
 // Create a RecoilApp component to use hooks (RecoilRoot cannot use hooks directly)
@@ -52,7 +53,7 @@ const RecoilApp: React.FC = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [solverPath, setSolverPath] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const { settings } = useSettings();
+  const { settings, saveSettings } = useSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useRecoilState(settingsModalOpenState);
   const [isRunning, setIsRunning] = useRecoilState(isRunningState);
   const [currentStep, setCurrentStep] = useRecoilState(currentStepState);
@@ -86,15 +87,15 @@ const RecoilApp: React.FC = () => {
     // Step 1: Show intro animation in center of screen
     setAnimation('intro');
     
-    // Step 2: After 1.5 seconds, move header up, fade out subtitle
+    // Step 2: After 2 seconds, move header up, fade out subtitle
     const moveUpTimer = setTimeout(() => {
       setAnimation('moveUp');
-    }, 1500);
+    }, 2000);
     
     // Step 3: After transition completes, show command palette
     const showCommandsTimer = setTimeout(() => {
       setAnimation('commandPalette');
-    }, 2300); // 1500ms + 800ms for animation
+    }, 2800); // 2000ms + 800ms for animation
     
     return () => {
       clearTimeout(moveUpTimer);
@@ -141,8 +142,27 @@ const RecoilApp: React.FC = () => {
   };
 
   const cancelCommand = () => {
+    // Send a cancel command to Python
+    window.electron.sendToPython({ type: "cancel", data: null });
+    
+    // Update UI state
     setIsRunning(false);
+    setCurrentStep("Command cancelled by user");
+    
+    // Reset after a short delay
+    setTimeout(() => {
+      setCurrentStep("");
+    }, 2000);
   };
+
+  // Check if solver path is set
+  const isSolverPathSet = React.useMemo(() => {
+    console.log('Settings in App:', settings);
+    console.log('Solver path:', settings?.solverPath);
+    const result = settings?.solverPath !== null && settings?.solverPath !== undefined && settings?.solverPath !== '';
+    console.log('isSolverPathSet:', result);
+    return result;
+  }, [settings?.solverPath]);
 
   return (
     <AppContainer>
@@ -151,22 +171,13 @@ const RecoilApp: React.FC = () => {
         <SettingsButton onClick={() => setIsSettingsOpen(true)} />
       </SettingsButtonContainer>
       <CenteredHeaderContainer $animate={animation}>
-        <Header />
-        <TaglineWrapper $animate={animation}>
-          <Tagline>Poker Game Solver</Tagline>
-        </TaglineWrapper>
+        <Header showTagline={animation === 'intro'} />
       </CenteredHeaderContainer>
 
-      {isLoading ? (
-        <LoadingScreen>
-          <Spinner />
-          <DescriptionText>Loading...</DescriptionText>
-        </LoadingScreen>
-      ) : error ? (
+      {error ? (
         <MainContent $animate={animation}>
           <ContentSection>
             <ErrorText>{error}</ErrorText>
-            <Button onClick={() => setIsSettingsOpen(true)}>Open Settings</Button>
           </ContentSection>
         </MainContent>
       ) : (
@@ -183,124 +194,111 @@ const RecoilApp: React.FC = () => {
                   <Spinner />
                   <ExecutionStep>{currentStep}</ExecutionStep>
                 </ExecutionStatus>
-                <ExecuteButton 
-                  variant="secondary" 
-                  onClick={cancelCommand}
-                >
-                  Cancel
-                </ExecuteButton>
               </ExecutionContainer>
             ) : (
               <>
-                <DescriptionText>
-                  {getCommandDescription(currentCommand)}
+                <DescriptionText $animate={animation}>
+                  {!isSolverPathSet 
+                    ? "Select a piosolver executable in settings" 
+                    : getCommandDescription(currentCommand)}
                 </DescriptionText>
                 
-                <CommandPalette>
+                <CommandPalette $animate={animation}>
+                  <Toggles>
                   <ToggleGroup>
                     <ToggleLabel>Nodelock</ToggleLabel>
                     <ToggleContainer>
                       <ToggleOption 
                         $active={!nodelock} 
-                        onClick={() => solveType !== 'getResults' && setNodelock(false)}
+                        onClick={() => isSolverPathSet && solveType !== 'getResults' && setNodelock(false)}
                         style={{ 
-                          opacity: solveType === 'getResults' ? 0.5 : 1,
-                          cursor: solveType === 'getResults' ? 'not-allowed' : 'pointer'
+                          opacity: !isSolverPathSet || solveType === 'getResults' ? 0.5 : 1,
+                          cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        No
+                        Off
                       </ToggleOption>
-                      <ToggleOptionDivider>|</ToggleOptionDivider>
                       <ToggleOption 
                         $active={nodelock} 
-                        onClick={() => solveType !== 'getResults' && setNodelock(true)}
+                        onClick={() => isSolverPathSet && solveType !== 'getResults' && setNodelock(true)}
                         style={{ 
-                          opacity: solveType === 'getResults' ? 0.5 : 1,
-                          cursor: solveType === 'getResults' ? 'not-allowed' : 'pointer'
+                          opacity: !isSolverPathSet || solveType === 'getResults' ? 0.5 : 1,
+                          cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        Yes
+                        On
                       </ToggleOption>
                     </ToggleContainer>
                   </ToggleGroup>
-                  
+
                   <ToggleGroup>
-                    <ToggleLabel>Solve Mode</ToggleLabel>
+                    <ToggleLabel>Solve Type</ToggleLabel>
                     <ToggleContainer>
                       <ToggleOption 
-                        $active={solveType === 'none'} 
-                        onClick={() => setSolveType('none')}
-                      >
-                        None
-                      </ToggleOption>
-                      <ToggleOptionDivider>|</ToggleOptionDivider>
-                      <ToggleOption 
                         $active={solveType === 'solve'} 
-                        onClick={() => setSolveType('solve')}
+                        onClick={() => isSolverPathSet && setSolveType('solve')}
+                        style={{ 
+                          opacity: !isSolverPathSet ? 0.5 : 1,
+                          cursor: !isSolverPathSet ? 'not-allowed' : 'pointer'
+                        }}
                       >
                         Solve
                       </ToggleOption>
-                      <ToggleOptionDivider>|</ToggleOptionDivider>
                       <ToggleOption 
                         $active={solveType === 'getResults'} 
-                        onClick={() => {
-                          setSolveType('getResults');
-                          // Force nodelock off and saveType to full when getResults is selected
-                          setNodelock(false);
-                          setSaveType('full');
+                        onClick={() => isSolverPathSet && setSolveType('getResults')}
+                        style={{ 
+                          opacity: !isSolverPathSet ? 0.5 : 1,
+                          cursor: !isSolverPathSet ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        Get Results
+                        Results
                       </ToggleOption>
                     </ToggleContainer>
                   </ToggleGroup>
-                  
+
                   <ToggleGroup>
                     <ToggleLabel>Save Type</ToggleLabel>
                     <ToggleContainer>
                       <ToggleOption 
                         $active={saveType === 'full'} 
-                        onClick={() => solveType !== 'getResults' && setSaveType('full')}
+                        onClick={() => isSolverPathSet && solveType !== 'getResults' && setSaveType('full')}
                         style={{ 
-                          opacity: solveType === 'getResults' ? 0.5 : 1,
-                          cursor: solveType === 'getResults' ? 'not-allowed' : 'pointer'
+                          opacity: !isSolverPathSet || solveType === 'getResults' ? 0.5 : 1,
+                          cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        Full
+                        full
                       </ToggleOption>
-                      <ToggleOptionDivider>|</ToggleOptionDivider>
                       <ToggleOption 
                         $active={saveType === 'mini'} 
-                        onClick={() => solveType !== 'getResults' && setSaveType('mini')}
+                        onClick={() => isSolverPathSet && solveType !== 'getResults' && setSaveType('mini')}
                         style={{ 
-                          opacity: solveType === 'getResults' ? 0.5 : 1,
-                          cursor: solveType === 'getResults' ? 'not-allowed' : 'pointer'
+                          opacity: !isSolverPathSet || solveType === 'getResults' ? 0.5 : 1,
+                          cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        Mini
+                        mini
                       </ToggleOption>
-                      <ToggleOptionDivider>|</ToggleOptionDivider>
-                      <ToggleOption 
-                        $active={saveType === 'tiny'} 
-                        onClick={() => solveType !== 'getResults' && setSaveType('tiny')}
-                        style={{ 
-                          opacity: solveType === 'getResults' ? 0.5 : 1,
-                          cursor: solveType === 'getResults' ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        Tiny
-                      </ToggleOption>
+
                     </ToggleContainer>
                   </ToggleGroup>
+                  
+                  </Toggles>
+
+                  <ExecuteButton 
+                    variant="primary" 
+                    onClick={executeCommand}
+                    disabled={!hasCommandSelected || !isSolverPathSet}
+                    $animate={animation}
+                    style={{ 
+                      opacity: !isSolverPathSet ? 0.5 : 1,
+                      cursor: !isSolverPathSet ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    GO
+                  </ExecuteButton>
                 </CommandPalette>
-                
-                <ExecuteButton 
-                  variant="primary" 
-                  onClick={executeCommand}
-                  disabled={!hasCommandSelected}
-                >
-                  Go
-                </ExecuteButton>
               </>
             )}
           </ContentSection>
@@ -312,15 +310,54 @@ const RecoilApp: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={async (newSettings: any) => {
-          setIsSettingsOpen(false);
-          if (newSettings.solverPath) {
-            setSolverPath(newSettings.solverPath);
-            window.electron.sendSolverPath(newSettings.solverPath);
-            setError(null);
+          console.log('App received new settings:', newSettings);
+          try {
+            await saveSettings(newSettings);
+            
+            if (newSettings.solverPath) {
+              setSolverPath(newSettings.solverPath);
+              setError(null);
+            }
+            
+            setIsSettingsOpen(false);
+          } catch (error) {
+            console.error('Error saving settings:', error);
           }
         }}
       />
       <Footer />
+      
+      {/* Cancel button at bottom of screen when running */}
+      {isRunning && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '0',
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <ExecuteButton 
+            variant="secondary" 
+            onClick={cancelCommand}
+            style={{
+              opacity: 1,
+              visibility: 'visible',
+              backgroundColor: 'transparent',
+              color: '#888888',
+              padding: '8px 24px',
+              borderRadius: '8px',
+              fontFamily: 'Inter, sans-serif',
+              border: '1px solid #555555',
+              animation: 'none',
+              boxShadow: 'none'
+            }}
+          >
+            Cancel
+          </ExecuteButton>
+        </div>
+      )}
     </AppContainer>
   );
 };

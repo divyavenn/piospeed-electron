@@ -38,8 +38,6 @@ export function setupIpcHandlers(messageQueue: MessageQueue, store: Store): void
    * → React app's callback is triggered via onPythonMessage
    */
   messageQueue.on('message', (data: any) => {
-    console.log('Received message from Python:', data);
-
     BrowserWindow.getAllWindows().forEach(window => {
       window.webContents.send('python-message', data);
     });

@@ -4,6 +4,7 @@ import Modal from '../UI/Modal';
 import Input from '../UI/Input';
 import Button from '../UI/Button';
 import PathDisplay from '../UI/PathDisplay';
+import { FaSearch } from 'react-icons/fa';
 
 // Settings configuration interface
 export interface AppSettings {
@@ -34,19 +35,62 @@ const SectionTitle = styled.h3`
 
 const ButtonRow = styled.div`
   display: flex;
-  gap: ${({ theme }) => theme.spacing.medium};
+  justify-content: center;
   margin-top: ${({ theme }) => theme.spacing.large};
+`;
+
+const SaveButton = styled.button`
+  background-color: #3961fb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(57, 97, 251, 0.3);
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #2a4cd7;
+  }
+
+  &:active {
+    background-color: #1e3bb8;
+    transform: translateY(1px);
+  }
 `;
 
 const PathRow = styled.div`
   display: flex;
   align-items: center;
-  margin-bottom: ${({ theme }) => theme.spacing.medium};
-  gap: ${({ theme }) => theme.spacing.medium};
 `;
 
 const PathContainer = styled.div`
   flex: 1;
+  position: relative;
+`;
+
+const SearchIconButton = styled.button`
+  position: absolute;
+  right: 10px;
+  top: 38px;
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.colors.textFaded};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  z-index: 10;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.textHighlight};
+    background-color: rgba(255, 255, 255, 0.05);
+  }
 `;
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -108,10 +152,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     }
     
     if (path) {
-      setFormValues(prev => ({ ...prev, [key]: path }));
+      const updatedValues = { ...formValues, [key]: path };
+      setFormValues(updatedValues);
+      
+      // If solver path is selected, immediately send it to Python to attempt connection
+      if (key === 'solverPath') {
+        try {
+          window.electron.sendToPython({ type: "solverPath", data: path });
+          
+          // Immediately save the settings when solver path is selected
+          onSaveSettings(updatedValues);
+          
+        } catch (error) {
+          console.error('Error sending solver path to Python:', error);
+        }
+      }
     }
   };
   const handleSave = () => {
+    console.log('Saving settings:', formValues);
     onSaveSettings(formValues);
     onClose();
   };
@@ -119,7 +178,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Settings" width="600px">
       <FormSection>
-        <SectionTitle>PioSOLVER Configuration</SectionTitle>
+        <SectionTitle>Configuration</SectionTitle>
         
         <PathRow>
           <PathContainer>
@@ -130,20 +189,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               onChange={handleChange}
               disabled
             />
-            <PathDisplay path={formValues.solverPath} placeholder="No solver selected" />
+            <SearchIconButton onClick={() => handleSelectPath('solverPath')} title="Browse for PioSOLVER">
+              <FaSearch size={16} />
+            </SearchIconButton>
           </PathContainer>
-          <Button 
-            variant="secondary" 
-            onClick={() => handleSelectPath('solverPath')}
-          >
-            Browse
-          </Button>
         </PathRow>
-      </FormSection>
-
-      <FormSection>
-        <SectionTitle>Folders Configuration</SectionTitle>
-        
         <PathRow>
           <PathContainer>
             <Input 
@@ -153,14 +203,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               onChange={handleChange}
               disabled
             />
-            <PathDisplay path={formValues.cfrFolder} placeholder="No CFR folder selected" />
+            <SearchIconButton onClick={() => handleSelectPath('cfrFolder')} title="Browse for CFR Folder">
+              <FaSearch size={16} />
+            </SearchIconButton>
           </PathContainer>
-          <Button 
-            variant="secondary" 
-            onClick={() => handleSelectPath('cfrFolder')}
-          >
-            Browse
-          </Button>
         </PathRow>
         
         <PathRow>
@@ -172,14 +218,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               onChange={handleChange}
               disabled
             />
-            <PathDisplay path={formValues.weights} placeholder="No strategy file selected" />
+            <SearchIconButton onClick={() => handleSelectPath('weights')} title="Browse for Strategies Folder">
+              <FaSearch size={16} />
+            </SearchIconButton>
           </PathContainer>
-          <Button 
-            variant="secondary" 
-            onClick={() => handleSelectPath('weights')}
-          >
-            Browse
-          </Button>
         </PathRow>
         
         <PathRow>
@@ -191,19 +233,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               onChange={handleChange}
               disabled
             />
-            <PathDisplay path={formValues.nodeBook} placeholder="No nodeBook selected" />
+            <SearchIconButton onClick={() => handleSelectPath('nodeBook')} title="Browse for NodeBook Folder">
+              <FaSearch size={16} />
+            </SearchIconButton>
           </PathContainer>
-          <Button 
-            variant="secondary" 
-            onClick={() => handleSelectPath('nodeBook')}
-          >
-            Browse
-          </Button>
         </PathRow>
-      </FormSection>
-
-      <FormSection>
-        <SectionTitle>Solver Parameters</SectionTitle>
         <Input 
           label="Accuracy (as a fraction of pot, e.g. 0.02)" 
           name="accuracy"
@@ -217,15 +251,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       </FormSection>
 
       <ButtonRow>
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave}>
-          Save Settings
-        </Button>
+        <SaveButton onClick={handleSave}>
+          save
+        </SaveButton>
       </ButtonRow>
     </Modal>
   );
 };
 
-export default SettingsModal; 
+export default SettingsModal;

@@ -17,14 +17,25 @@ const Title = styled.h1`
   font-size: ${({ theme }) => theme.sizes.xlarge};
   color: ${({ theme }) => theme.colors.textHighlight};
   margin: ${({ theme }) => theme.spacing.medium} 0;
+  font-weight: 500;
+  letter-spacing: 1px;
 `;
 
-const Tagline = styled.div`
-  font-size: ${({ theme }) => theme.sizes.large};
+interface TaglineProps {
+  $visible: boolean;
+}
+
+const Tagline = styled.div<TaglineProps>`
+  font-size: 1em;
   text-align: center;
-  margin: ${({ theme }) => theme.spacing.xl} 0;
+  margin: ${({ theme }) => theme.spacing.medium} 0;
   color: ${({ theme }) => theme.colors.textFaded};
-  font-weight: 300;
+  opacity: ${props => props.$visible ? 1 : 0};
+  height: ${props => props.$visible ? 'auto' : '0'};
+  overflow: hidden;
+  transition: opacity 0.8s ease-out, height 0.8s ease-out;
+  letter-spacing: 0.5px;
+  font-family:  Inter;
 `;
 
 interface HeaderProps {
@@ -44,11 +55,11 @@ const Header: React.FC<HeaderProps> = ({
           <Title>PioSpeed</Title>
         </>
       )}
-      {showTagline && (
-        <Tagline>GTO simulations for poker made effortless</Tagline>
-      )}
+      <Tagline $visible={showTagline}>
+        GTO simulations for poker made effortless
+      </Tagline>
     </HeaderContainer>
   );
 };
 
-export default Header; 
+export default Header;

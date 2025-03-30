@@ -14922,7 +14922,9 @@ class MessageQueue extends require$$5.EventEmitter {
       const oldState = this._state;
       this._state = newState;
       console.log(`Connection state changed: ${ConnectionState[oldState]} -> ${ConnectionState[newState]}`);
-      this.emit("connection-state-change", newState);
+      if (newState === 3) {
+        this.emit("connection-state-change", newState);
+      }
     }
   }
   // Get current connection state
@@ -14969,7 +14971,7 @@ class MessageQueue extends require$$5.EventEmitter {
           reject(new Error("Connection stopped"));
           return;
         }
-        console.log("Connected to Python process");
+        console.log("Electron connected to Python");
         this.state = 2;
         this.reconnectAttempts = 0;
         this.setupListeners();
@@ -14993,8 +14995,11 @@ class MessageQueue extends require$$5.EventEmitter {
         for (const msg of messages) {
           try {
             const message = JSON.parse(msg);
-            console.log("Parsed message:", message);
-            if (message.type === "ready") {
+            console.log("Electron recieved message:", message);
+            if (message.type === "python ready") {
+              this.sendOnSocket({ type: "electron ready", data: null });
+            }
+            if (message.type == "hi!") {
               this.state = 3;
             }
             this.emit("message", message);
@@ -15050,13 +15055,18 @@ class MessageQueue extends require$$5.EventEmitter {
       }
     }, 1e3);
   }
+  async sendOnSocket(message) {
+    const jsonMessage = JSON.stringify(message) + "\n";
+    console.log(`Electron sending to Python: ${jsonMessage}`);
+    ipc.of.python.socket.write(jsonMessage);
+  }
   async send(message) {
     if (this.state !== 3) {
       console.warn(`Cannot send message: not ready (current state: ${ConnectionState[this.state]})`);
       return;
     }
     try {
-      ipc.of.python.emit("message", message);
+      await this.sendOnSocket(message);
     } catch (error2) {
       console.error("Error sending message:", error2);
       this.handleDisconnect();
@@ -15081,7 +15091,6 @@ function setupIpcHandlers(messageQueue2, store2) {
     }
   });
   messageQueue2.on("message", (data) => {
-    console.log("Received message from Python:", data);
     require$$1$2.BrowserWindow.getAllWindows().forEach((window2) => {
       window2.webContents.send("python-message", data);
     });

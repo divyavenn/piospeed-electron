@@ -35,7 +35,7 @@ interface ElectronAPI {
   }) => Promise<{ success: boolean; error?: string }>;
   
   // Python bridge operations
-  sendSolverPath: (path: string) => void;
+  sendToPython: (message: any) => Promise<void>;
   onPythonMessage: (callback: (data: any) => void) => void;
   removePythonMessageListener: (callback: (data: any) => void) => void;
 }

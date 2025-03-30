@@ -54,7 +54,9 @@ export class MessageQueue extends EventEmitter {
       const oldState = this._state;
       this._state = newState;
       console.log(`Connection state changed: ${ConnectionState[oldState]} -> ${ConnectionState[newState]}`);
-      this.emit('connection-state-change', newState);
+      if (newState === ConnectionState.READY) {
+        this.emit('connection-state-change', newState);
+      }
     }
   }
 
@@ -116,7 +118,7 @@ export class MessageQueue extends EventEmitter {
           return;
         }
         
-        console.log("Connected to Python process");
+        console.log("Electron connected to Python");
         this.state = ConnectionState.CONNECTED;
         this.reconnectAttempts = 0;
         this.setupListeners();
@@ -145,9 +147,13 @@ export class MessageQueue extends EventEmitter {
         for (const msg of messages) {
           try {
             const message = JSON.parse(msg);
-            console.log('Parsed message:', message);
+            console.log('Electron recieved message:', message);
             
-            if (message.type === 'ready') {
+            
+            if (message.type === 'python ready') {
+              this.sendOnSocket({ type: 'electron ready', data: null });
+            }
+            if (message.type == "hi!"){
               this.state = ConnectionState.READY;
             }
             
@@ -221,14 +227,21 @@ export class MessageQueue extends EventEmitter {
     }, 1000);
   }
 
+  async sendOnSocket(message:Message) : Promise<void> {
+    const jsonMessage = JSON.stringify(message) + '\n';
+    console.log(`Electron sending to Python: ${jsonMessage}`);
+    // Format the message as a JSON string with a newline
+    ipc.of.python.socket.write(jsonMessage);
+  }
+
   async send(message: Message): Promise<void> {
     if (this.state !== ConnectionState.READY) {
       console.warn(`Cannot send message: not ready (current state: ${ConnectionState[this.state]})`);
       return;
     }
 
-    try {
-      ipc.of.python.emit('message', message);
+    try {   
+      await this.sendOnSocket(message);
     } catch (error) {
       console.error('Error sending message:', error);
       this.handleDisconnect();

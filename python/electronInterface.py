@@ -15,21 +15,31 @@ class ElectronInterface(Interface):
         self.solver_path = None
         
     async def getSolverPath(self) -> str:
-        # Request solver path from Electron settings
-        request = json.dumps({"type": "get_solver_path"})
-        response = await self.bridge.send(request)
+        """
+        Wait for the solver path to be sent from Electron.
+        This method is called by start.py to initialize the solver path.
+        """
+        print("Waiting for solver path from Electron...")
         
-        if response and response.get('type') == 'solver_path':
-            self.solver_path = response['path']
+        # The message_listener in bridge.py will now handle incoming messages
+        # This method can return the current solver_path or wait for it to be set
+        
+        if self.solver_path:
             return self.solver_path
             
-        if not response or not response.get('solver_path'):
-            await self.notify("Please configure the solver path in settings")
-            return None
-            
-        self.solver_path = response['solver_path']
+        # Wait for a short time to see if we receive the path
+        await asyncio.sleep(2)
         return self.solver_path
-        
+    
+    def setSolverPath(self, path: str) -> None:
+        """
+        Set the solver path received from Electron.
+        This method will be called by the message_listener in bridge.py.
+        """
+        print(f"Setting solver path to: {path}")
+        self.solver_path = path
+        # Here you could add code to attempt connecting to the solver
+    
     async def getCommand(self) -> PluginCommands:
         # Wait for React app to send the command via electron_bridge
         commandKey = await self.bridge.receive()

@@ -10,7 +10,7 @@ const Container = styled.div`
   padding: ${({ theme }) => theme.spacing.normal};
   background-color: ${({ theme }) => theme.colors.surfaceLight};
   border-radius: ${({ theme }) => theme.borderRadius.normal};
-  font-family: ${({ theme }) => theme.fonts.monospace};
+  font-family: monospace;
   color: ${({ theme }) => theme.colors.textFaded};
   overflow: hidden;
   text-overflow: ellipsis;

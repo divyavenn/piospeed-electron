@@ -7,9 +7,9 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   fullWidth?: boolean;
 }
 
-const InputContainer = styled.div<{ fullWidth?: boolean }>`
+const InputContainer = styled.div<{ $fullWidth?: boolean }>`
   margin-bottom: ${({ theme }) => theme.spacing.medium};
-  width: ${({ fullWidth }) => fullWidth ? '100%' : 'auto'};
+  width: ${({ $fullWidth }) => $fullWidth ? '100%' : 'auto'};
 `;
 
 const InputLabel = styled.label`
@@ -19,16 +19,19 @@ const InputLabel = styled.label`
   font-size: ${({ theme }) => theme.sizes.small};
 `;
 
-const StyledInput = styled.input`
+interface StyledInputProps {
+  error?: string;
+}
+
+const StyledInput = styled.input<StyledInputProps>`
   width: 100%;
-  padding: ${({ theme }) => theme.spacing.normal};
-  background-color: ${({ theme }) => theme.colors.surfaceLight};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  padding: ${({ theme }) => theme.spacing.medium};
+  background-color: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme, error }) => error ? theme.colors.error : theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.normal};
-  color: ${({ theme }) => theme.colors.text};
-  font-family: ${({ theme }) => theme.fonts.primary};
   font-size: ${({ theme }) => theme.sizes.normal};
-  transition: ${({ theme }) => theme.transitions.fast};
+  color: ${({ theme }) => theme.colors.text};
+  transition: all 0.2s ease;
   
   &:focus {
     outline: none;
@@ -37,7 +40,7 @@ const StyledInput = styled.input`
   }
   
   &::placeholder {
-    color: ${({ theme }) => theme.colors.disabled};
+    color: ${({ theme }) => theme.colors.textFaded};
   }
   
   &:disabled {
@@ -51,7 +54,7 @@ const ErrorText = styled.div`
   color: ${({ theme }) => theme.colors.error};
   font-size: ${({ theme }) => theme.sizes.small};
   margin-top: ${({ theme }) => theme.spacing.xs};
-  min-height: 18px;
+  min-height: 20px;
 `;
 
 const Input: React.FC<InputProps> = ({ 
@@ -63,12 +66,12 @@ const Input: React.FC<InputProps> = ({
   const id = `input-${label.toLowerCase().replace(/\s+/g, '-')}`;
   
   return (
-    <InputContainer fullWidth={fullWidth}>
+    <InputContainer $fullWidth={fullWidth}>
       <InputLabel htmlFor={id}>{label}</InputLabel>
-      <StyledInput id={id} {...props} />
+      <StyledInput id={id} error={error} {...props} />
       <ErrorText>{error || ''}</ErrorText>
     </InputContainer>
   );
 };
 
-export default Input; 
+export default Input;

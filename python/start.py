@@ -12,10 +12,13 @@ async def main():
         # Start the bridge and wait for it to be ready
         await interface.bridge.run()
         
+        
     except KeyboardInterrupt:
         print("........user interrupted run!")
     except Exception as e:
         print(f"........Error during startup: {str(e)}")
+        
+    
     finally:
         try:
             # get all tasks in event loop and close them
