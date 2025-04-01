@@ -263,7 +263,7 @@ class MessageQueue:
                 weights_path = args.get('weights_file')
                 if not weights_path:
                     raise ValueError("Missing weights_file argument")
-                # Create a map of category names -> weights (currently just the path)
+                
                 weights_info = weights_path
                 ordered_args.append(weights_info)
             
@@ -277,8 +277,9 @@ class MessageQueue:
                 board_info = [board_path, 'default', board_path]  # [nodeID, board_type, original_path]
                 ordered_args.append(board_info)
             
-            print(f"EIARNSOITEARSOIETANRISOT{command.value} with ordered args: {ordered_args}")
             # Run the command with ordered arguments
+            # Set the bridge reference in the program for sending command summaries
+            self.program.bridge = self
             await self.program.commandRun(command.value, ordered_args)
         
         except KeyError:

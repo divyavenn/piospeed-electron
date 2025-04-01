@@ -1,13 +1,11 @@
 from __future__ import annotations
-from menu import PluginCommands, Command
+from menu import Command
 from inputs import Board
 from stringFunc import removeExtension, timestamp, get_file_name_from_path
 from SolverConnection.testSolver import Solver
-from solverCommands import SolverCommmand
 from typing import Callable
 from fileIO import addRowstoCSV
 import unittest
-import shutil
 import random
 import asyncio
 import os
@@ -124,19 +122,22 @@ class Program:
         nodeBook_file_name = get_file_name_from_path(args[1][2])
         save_type = Program.get_save_type(board_type)
         
-        await self.run_cfr(args[0][0], args[0][1], args[1][0], save_type = save_type)
+        results_path = await self.run_cfr(args[0][0], args[0][1], args[1][0], save_type=save_type)
+        await self.send_command_summary("run_full", args[0][1], args[1][2], nodeBook, results_path)
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     # args[1][0] : either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs
     async def solve_full(self, args: list[str]):
-        await self.run_cfr(args[0][0], args[0][1], args[1][0])
-
+        results_path = await self.run_cfr(args[0][0], args[0][1], args[1][0])
+        await self.send_command_summary("run_full", args[0][1], args[1][2], args[1][0], results_path)
+        
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     # args[1][0] : either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs
     async def get_results(self, args: list[str]):
-        await self.run_cfr(args[0][0], args[0][1], args[1][0], solveFirst = False)
+        results_path = await self.run_cfr(args[0][0], args[0][1], args[1][0], solveFirst=False)
+        await self.send_command_summary("get_results", args[0][1], args[1][2], args[1][0], results_path)
         
     
         
@@ -161,9 +162,9 @@ class Program:
         
         
         if publish_results:
-            await self.publish_results(folder, toCSV, solved = solveFirst)
+            return await self.publish_results(folder, toCSV, solved = solveFirst)
         
-        return toCSV
+        return None
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
@@ -187,6 +188,7 @@ class Program:
         if auto_size:
             save_type = "no rivers"
         
+        processed_files = []
         for cfr in cfrFiles:
             nodeID = "target node"
             if nodeID:
@@ -204,6 +206,7 @@ class Program:
                     if (save_type):
                         msg = "Saved to " + path + cfr + " using " + save_type + " save."
                     self.notify(msg)
+                    processed_files.append(cfr)
                     
                     # get results
 
@@ -215,10 +218,30 @@ class Program:
             
             
         #shutil.copyfile(weights_file_path, path + weights_file_name)
-        await self.publish_results(path, toCSV, solve)
+        results_path = await self.publish_results(path, toCSV, solve)
+        
+        # Send command summary to frontend
+        command_type = "nodelock_solve_full" if solve and not auto_size else "nodelock_solve_mini" if solve and auto_size else "nodelock"
+        await self.send_command_summary(command_type, processed_files, weights_file_path, nodeBook, results_path)
         
         return path
         
+    async def send_command_summary(self, command_type, processed_files, weights_file, board_file, results_path):
+        """Send a summary of the completed command to the frontend"""
+        summary = {
+            "command": command_type,
+            "processed_files": processed_files,
+            "weights_file": weights_file,
+            "board_file": board_file,
+            "results_path": results_path
+        }
+        
+        # If we're using the bridge to communicate with the frontend
+        if hasattr(self, 'bridge') and self.bridge:
+            await self.bridge.send(Message('command_summary', summary))
+        else:
+            # Otherwise just print the summary
+            self.notify(f"Command Summary: {summary}")
     
     async def publish_results(self, folder:str, toCSV: list[list[str]], solved = True):
         path = self.get_results_path("results_" + timestamp() + ".csv")
@@ -232,8 +255,7 @@ class Program:
             msg = "Saved unsolved results to " + path
         
         self.notify(msg)
-        
-
+        return path
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files

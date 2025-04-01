@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { RecoilRoot, useRecoilState, useRecoilValue } from 'recoil';
 import Background from './components/layout/Background';
 import Header from './components/layout/Header';
@@ -6,6 +6,7 @@ import Footer from './components/layout/Footer';
 import Button from './components/UI/Button';
 import SettingsButton from './components/UI/SettingsButton';
 import SettingsModal from './components/Settings/SettingsModal';
+import CommandSummaryModal from './components/SummaryModal';
 import { useSettings, AppSettings } from './contexts/SettingsContext';
 import { 
   currentCommandState, 
@@ -59,6 +60,15 @@ import {
   ModalButton,
   NotificationContainer
 } from './styles/AppStyles';
+
+// Command Summary Modal interface
+interface CommandSummary {
+  command: string;
+  processed_files: string[];
+  weights_file: string;
+  board_file: string;
+  results_path: string;
+}
 
 // Create a RecoilApp component to use hooks (RecoilRoot cannot use hooks directly)
 const RecoilApp: React.FC = () => {
@@ -131,6 +141,13 @@ const RecoilApp: React.FC = () => {
         setIsRunning(false);
         setCurrentStep('Command completed.');
         setAnimation('commandPalette');
+      }
+      
+      // Handle command summary messages
+      else if (data.type === 'command_summary') {
+        console.log('Received command summary:', data.data);
+        setCommandSummary(data.data);
+        setIsRunning(false); // Command is complete
       }
       
       // Handle errors from Python
@@ -298,6 +315,9 @@ const RecoilApp: React.FC = () => {
 
   // Check if solver path is set
   const isSolverPathSet = Boolean(settings.solverPath);
+
+  // State for command summary modal
+  const [commandSummary, setCommandSummary] = useState<CommandSummary | null>(null);
 
   return (
     <AppContainer>
@@ -474,6 +494,11 @@ const RecoilApp: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={handleSettingsSubmit}
+      />
+      <CommandSummaryModal
+        isOpen={commandSummary !== null}
+        onClose={() => setCommandSummary(null)}
+        summary={commandSummary}
       />
       <Footer />
       

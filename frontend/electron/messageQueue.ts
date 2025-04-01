@@ -157,7 +157,6 @@ export class MessageQueue extends EventEmitter {
             if (message.type == "hi!"){
               this.state = ConnectionState.READY;
             }
-            
             this.emit('message', message);
           } catch (e) {
             console.error('Failed to parse message part:', msg, e);
