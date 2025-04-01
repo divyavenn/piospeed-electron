@@ -1,7 +1,7 @@
 import { atom, selector } from 'recoil';
 
 // Types
-export type SaveType = 'full' | 'mini';
+export type SaveType = 'full' | 'mini' | 'no rivers' | 'no turns';
 export type SolveType = 'none' |'solve' | 'getResults';
 export type AnimationState = 'intro' | 'moveUp' | 'commandPalette';
 
@@ -32,7 +32,7 @@ export type CommandMapType = {
 
 export const CommandMap: CommandMapType = {
   NODELOCK_SOLVE: {
-    name: "nodelock_solve",
+    name: "nodelock_solve_full",
     inputs: [Inputs.cfrFolder, Inputs.nodeBook, Inputs.weights]
   },
   NODELOCK_SOLVE_MINI: {
@@ -40,15 +40,19 @@ export const CommandMap: CommandMapType = {
     inputs: [Inputs.cfrFolder, Inputs.nodeBook, Inputs.weights]
   },
   RUN_AUTO: {
-    name: "run_auto",
+    name: "run_mini",
     inputs: [Inputs.cfrFolder, Inputs.nodeBook]
   },
   RUN_FULL_SAVE: {
-    name: "run_full_save",
+    name: "run_full",
     inputs: [Inputs.cfrFolder, Inputs.nodeBook]
   },
   NODELOCK: {
     name: "nodelock",
+    inputs: [Inputs.cfrFolder, Inputs.nodeBook, Inputs.weights]
+  },
+  NODELOCK_MINI: {
+    name: "nodelock_mini",
     inputs: [Inputs.cfrFolder, Inputs.nodeBook, Inputs.weights]
   },
   GET_RESULTS: {
@@ -90,6 +94,14 @@ export const saveTypeState = atom({
 export const isRunningState = atom({
   key: 'isRunningState',
   default: false
+});
+export const specificSaveState = selector({
+  key: 'specificSaveState',
+  get: ({ get }) => {
+    const nodelock = get(nodelockState);
+    const solveType = get(solveTypeState);
+    return !nodelock && solveType === 'none';
+  },
 });
 
 export const currentStepState = atom({
@@ -136,26 +148,31 @@ export const currentCommandState = selector({
     if (isNodelock && solveType === 'solve' && saveType === 'full') {
       return CommandMap.NODELOCK_SOLVE;
     }
-        
     
-    if (isNodelock && solveType === 'none') {
+    if (isNodelock && solveType === 'none' && saveType === 'full') {
       return CommandMap.NODELOCK;
+    }
+    if (isNodelock && solveType === 'none' && saveType === 'mini') {
+      return CommandMap.NODELOCK_MINI;
+    }
+
+    if (!isNodelock && solveType === 'solve' && saveType === 'full'){
+      return CommandMap.RUN_FULL_SAVE;
+    }
+
+    if (!isNodelock && solveType === 'solve' && saveType === 'mini'){
+      return CommandMap.RUN_AUTO;
     }
     
     if (solveType === 'getResults') {
       return CommandMap.GET_RESULTS;
     }
     
-    if (solveType === 'solve') {
-      if (saveType === 'full') {
-        return CommandMap.RUN_FULL_SAVE;
-      } else { // tiny
-        return CommandMap.RUN_AUTO;
+    if (!isNodelock && solveType === 'none') {
+      if (saveType === 'no rivers') {
+        return CommandMap.SAVE_NO_RIVERS;
       }
-    }
-    
-    if (solveType === 'none') {
-      if (saveType === 'mini') {
+      else if (saveType === 'no turns') {
         return CommandMap.SAVE_NO_TURNS;
       }
     }
@@ -174,16 +191,18 @@ export const commandDescriptionState = selector({
     if (!currentCommand) return '';
     
     switch (currentCommand.name) {
-      case 'nodelock_solve':
+      case 'nodelock_solve_full':
         return `Nodelock a folder of files and run the solver to an accuracy of ${accuracy}`;
       case 'nodelock_solve_mini':
         return `Nodelock a folder of files and run the solver to an accuracy of ${accuracy} and compress all unnecessary nodes when saving.`;
-      case 'run_auto':
+      case 'run_mini':
         return `Run the solver on the selected files to an accuracy of ${accuracy} and compress all unnecessary nodes when saving.`;
-      case 'run_full_save':
+      case 'run_full':
         return `Run the solver to an accuracy of ${accuracy} and save complete data including all streets`;
       case 'nodelock':
-        return 'Apply nodelocking to a folder of files without solving';
+        return 'Apply nodelocking to a folder of files without solving and save full tree.';
+      case 'nodelock_mini':
+        return 'Apply nodelocking to a folder of files without solving and save compressed tree';
       case 'get_results':
         return 'Calculate and display results from existing solutions without solving again';
       case 'save_no_rivers':

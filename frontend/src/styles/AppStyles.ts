@@ -189,8 +189,10 @@ export const Toggles = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: ${({ theme }) => theme.spacing.large};
   margin-bottom: 100px;
+  flex-wrap: wrap;
 `;
 
 export const ToggleGroup = styled.div`
@@ -199,18 +201,20 @@ export const ToggleGroup = styled.div`
   align-items: center;
   justify-content: flex-start;
   margin-bottom: ${({ theme }) => theme.spacing.medium};
-  width: 100%;
-  max-width: 400px;
+  width: auto;
+  min-width: 150px;
 `;
 
 export const ToggleLabel = styled.div`
   color: ${({ theme }) => theme.colors.textFaded};
   font-size: 14px;
   letter-spacing: 0.5px;
-  min-width: 100px;
   text-align: center;
   font-family: monospace;
   margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 export const ToggleContainer = styled.div`

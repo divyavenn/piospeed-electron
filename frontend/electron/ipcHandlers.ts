@@ -11,6 +11,9 @@ const store = new Store();
  * @param messageQueue The message queue used for communication with Python.
  */
 export function setupIpcHandlers(messageQueue: MessageQueue): void {
+  // Set a higher limit for listeners to prevent MaxListenersExceededWarning
+  messageQueue.setMaxListeners(20);
+
   /**
    * Handler for sending messages from the renderer process to Python.
    * 
@@ -114,6 +117,16 @@ export function setupIpcHandlers(messageQueue: MessageQueue): void {
       accuracy: store.get('accuracy') || 0.02,
     };
   });
+
+  // Check for solverPath in store and send to Python if it exists
+  const solverPath = store.get('solverPath');
+  if (solverPath) {
+    console.log('Found solver path in store, sending to Python:', solverPath);
+    // Send the solver path to Python
+    messageQueue.send({ type: 'solverPath', data: solverPath }).catch(error => {
+      console.error('Failed to send solver path to Python:', error);
+    });
+  }
 
   /**
    * Handler for opening a file or directory selection dialog

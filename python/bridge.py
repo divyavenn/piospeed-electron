@@ -232,9 +232,6 @@ class MessageQueue:
     async def handle_command(self, command_str: str, args: dict) -> None:
         """Handle a command from the frontend"""
         try:
-            # Convert command string to enum using command map
-            print(f"Received command: {command_str} with args: {args}")
-            
             command = self.command_map[command_str]
 
             # Get list of required input types from command definition
@@ -267,8 +264,8 @@ class MessageQueue:
                 if not weights_path:
                     raise ValueError("Missing weights_file argument")
                 # Create a map of category names -> weights (currently just the path)
-                weights_map = {'weights': weights_path}
-                ordered_args.append(weights_map)
+                weights_info = weights_path
+                ordered_args.append(weights_info)
             
             # Third argument is board file and type if required
             if InputType.board_file in required_inputs:
@@ -280,9 +277,9 @@ class MessageQueue:
                 board_info = [board_path, 'default', board_path]  # [nodeID, board_type, original_path]
                 ordered_args.append(board_info)
             
-            print(f"Executing command {command} with ordered args: {ordered_args}")
+            print(f"EIARNSOITEARSOIETANRISOT{command.value} with ordered args: {ordered_args}")
             # Run the command with ordered arguments
-            await self.program.commandRun(command, ordered_args)
+            await self.program.commandRun(command.value, ordered_args)
         
         except KeyError:
             await self.send(Message('error', f'Unknown command: {command_str}'))

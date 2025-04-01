@@ -15086,6 +15086,7 @@ class MessageQueue extends require$$5.EventEmitter {
 }
 const store = new Store();
 function setupIpcHandlers(messageQueue2) {
+  messageQueue2.setMaxListeners(20);
   require$$1$2.ipcMain.handle("send-to-python", async (_, message) => {
     try {
       await messageQueue2.send(message);
@@ -15127,6 +15128,13 @@ function setupIpcHandlers(messageQueue2) {
       accuracy: store.get("accuracy") || 0.02
     };
   });
+  const solverPath = store.get("solverPath");
+  if (solverPath) {
+    console.log("Found solver path in store, sending to Python:", solverPath);
+    messageQueue2.send({ type: "solverPath", data: solverPath }).catch((error2) => {
+      console.error("Failed to send solver path to Python:", error2);
+    });
+  }
   require$$1$2.ipcMain.handle("select-path", async (_, options) => {
     const mainWindow2 = require$$1$2.BrowserWindow.getFocusedWindow();
     if (!mainWindow2) {

@@ -22,6 +22,7 @@ import {
   SaveType,
   AnimationState,
   Inputs,
+  specificSaveState,
   commandDescriptionState
 } from './recoil/atoms'; 
 
@@ -71,6 +72,8 @@ const RecoilApp: React.FC = () => {
   const [saveType, setSaveType] = useRecoilState(saveTypeState);
   const [nodelock, setNodelock] = useRecoilState(nodelockState);
   const commandDescription = useRecoilValue(commandDescriptionState);
+  const specificSaves = useRecoilValue(specificSaveState)
+
 
   const handleSettingsSubmit = async (newSettings: AppSettings) => {
     try {
@@ -395,11 +398,13 @@ const RecoilApp: React.FC = () => {
                   <ToggleGroup>
                     <ToggleLabel>Save Type</ToggleLabel>
                     <ToggleContainer>
-                      <ToggleOption 
-                        $active={saveType === 'full'} 
-                        onClick={() => isSolverPathSet && solveType !== 'getResults' && setSaveType('full')}
-                        style={{ 
-                          opacity: !isSolverPathSet || solveType === 'getResults' ? 0.5 : 1,
+                      {!specificSaves ? 
+                      (<ToggleContainer>
+                        <ToggleOption 
+                          $active={saveType === 'full'} 
+                          onClick={() => isSolverPathSet && solveType !== 'getResults' && setSaveType('full')}
+                          style={{ 
+                            opacity: !isSolverPathSet || solveType === 'getResults' ? 0.5 : 1,
                           cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
                         }}
                       >
@@ -415,6 +420,30 @@ const RecoilApp: React.FC = () => {
                       >
                         mini
                       </ToggleOption>
+                      </ToggleContainer>) : (
+                      <ToggleContainer>
+                      <ToggleOption 
+                        $active={saveType === 'no rivers'} 
+                        onClick={() => isSolverPathSet && solveType !== 'getResults' && setSaveType('no rivers')}
+                        style={{ 
+                          opacity: !isSolverPathSet || solveType === 'getResults' ? 0.5 : 1,
+                        cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      no rivers
+                    </ToggleOption>
+                    <ToggleOption 
+                      $active={saveType === 'no turns'} 
+                      onClick={() => isSolverPathSet && solveType !== 'getResults' && setSaveType('no turns')}
+                      style={{ 
+                        opacity: !isSolverPathSet || solveType === 'getResults' ? 0.5 : 1,
+                        cursor: !isSolverPathSet || solveType === 'getResults' ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      no turns
+                    </ToggleOption>
+                    </ToggleContainer>
+                      )}
 
                     </ToggleContainer>
                   </ToggleGroup>

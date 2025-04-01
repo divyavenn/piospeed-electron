@@ -11,6 +11,7 @@ import shutil
 import random
 import asyncio
 import os
+from fileIO import JSONtoMap
 from bridge import Message
 
 class Program:
@@ -27,20 +28,6 @@ class Program:
         self.notify = notify_func
         self.results_dir = None  # Will be set via message from frontend
         self.accuracy = 0.02  # Default accuracy
-        
-        # Initialize command dispatcher
-        self.commandDispatcher = {
-            PluginCommands.NODELOCK_SOLVE: self.nodelock_solve,
-            PluginCommands.NODELOCK_SOLVE_MINI: self.nodelock_solve_mini,
-            PluginCommands.RUN_AUTO: self.solve,
-            PluginCommands.RUN_FULL_SAVE: self.solve_full,
-            PluginCommands.NODELOCK: self.nodelock,
-            PluginCommands.GET_RESULTS: self.get_results,
-            PluginCommands.SAVE_NO_RIVERS: self.resave_no_rivers,
-            PluginCommands.SAVE_NO_TURNS: self.resave_no_turns,
-            PluginCommands.SET_ACCURACY: self.update_accuracy,
-            PluginCommands.END: self.end
-        }
         
     def set_results_dir(self, path: str):
         """Set the results directory path"""
@@ -75,9 +62,58 @@ class Program:
         self.notify("Accuracy set to " + args[0] + ".")
     
     async def commandRun(self, inputtedCommand : Command = None, inputtedArgs : list[str] = None):
-        print(inputtedCommand)
-        await self.commandDispatcher[inputtedCommand](inputtedArgs)
-        self.notify("Command completed.")
+        command_name = inputtedCommand.name
+        # Direct method dispatch based on command name
+        if command_name == 'nodelock_solve_full':
+            print("Detected nodelock_solve_full command, calling directly")
+            await self.nodelock_solve(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'nodelock_solve_mini':
+            print("Detected nodelock_solve_mini command, calling directly")
+            await self.nodelock_solve_mini(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'nodelock':
+            await self.nodelock(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'nodelock_mini':
+            await self.nodelock_mini(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'run_mini':
+            await self.solve(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'run_full':
+            await self.solve_full(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'get_results':
+            await self.get_results(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'save_no_rivers':
+            await self.resave_no_rivers(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'save_no_turns':
+            await self.resave_no_turns(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'set_accuracy':
+            await self.update_accuracy(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        elif command_name == 'end':
+            await self.end(inputtedArgs)
+            self.notify("Command completed.")
+            return
+        else:
+            # If no direct match, raise error
+            print(f"Command '{command_name}' not recognized!")
+            raise KeyError(f"Unknown command: {command_name}")
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
@@ -135,9 +171,9 @@ class Program:
     # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
     async def nodelock_get_results_save(self, args : list[str], solve = False, auto_size = False):
         folder, cfrFiles = args[0]
-        weights_file_path = args[1][0]
+        weights_file_path = args[1]
         weights_file_name = get_file_name_from_path(weights_file_path)
-        weights_map = args[1][1]
+        weights_map = JSONtoMap(weights_file_path)
         
         nodeBook = args[2][0]
         board_type = args[2][1]
@@ -152,7 +188,7 @@ class Program:
             save_type = "no rivers"
         
         for cfr in cfrFiles:
-            nodeID = self.tryFunction(self.get_file_nodeID, [cfr, nodeBook])
+            nodeID = "target node"
             if nodeID:
 
                 self.notify("Now working on...." + cfr + " - " + nodeID)
@@ -178,7 +214,7 @@ class Program:
             toCSV.extend([[""], [" ", "SOLVED"], [""]])
             
             
-        shutil.copyfile(weights_file_path, path + weights_file_name)
+        #shutil.copyfile(weights_file_path, path + weights_file_name)
         await self.publish_results(path, toCSV, solve)
         
         return path
@@ -204,6 +240,16 @@ class Program:
     # args[1] : map of category names -> weights
     # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
     async def nodelock_solve(self, args : list[str]):
+        await self.nodelock_get_results_save(args, solve=True, auto_size=False)
+        
+    # args[0][0] : the folder path
+    # args[0][1] : list of .cfr files
+    # args[1] : map of category names -> weights
+    # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
+    async def nodelock_solve_mini(self, args : list[str]):
+        """
+        Similar to nodelock_solve but optimized for mini boards with simplified processing
+        """
         await self.nodelock_get_results_save(args, solve=True, auto_size=True)
         
     # args[0][0] : the folder path
@@ -211,9 +257,16 @@ class Program:
     # args[1] : map of category names -> weights
     # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
     async def nodelock(self, args : list[str]):
-        await self.nodelock_get_results_save(args, auto_size=True)
+        await self.nodelock_get_results_save(args, auto_size=False)
 
-    
+
+    # args[0][0] : the folder path
+    # args[0][1] : list of .cfr files
+    # args[1] : map of category names -> weights
+    # args[2] : [either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs, board_type]
+    async def nodelock_mini(self, args : list[str]):
+        await self.nodelock_get_results_save(args, auto_size=True)
+        
     @staticmethod
     def get_save_type(board_type : Board):
         save_type = None

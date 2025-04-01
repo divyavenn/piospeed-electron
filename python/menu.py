@@ -17,7 +17,7 @@ class Command:
 
 class PluginCommands(Enum):
 
-    NODELOCK_SOLVE = Command("nodelock_solve",
+    NODELOCK_SOLVE = Command("nodelock_solve_full",
                        [CFRFolder(),
                         WeightsFile(),
                         BoardFile()],
@@ -29,17 +29,22 @@ class PluginCommands(Enum):
                         BoardFile()],
                        "Allows you to nodelock a folder of files at once.")
     
-    RUN_AUTO = Command("run_auto", 
+    RUN_AUTO = Command("run_mini", 
                   [CFRFolder(),
                    BoardFile()],
                   "solves + resaves .cfr file")
     
-    RUN_FULL_SAVE = Command("run_full_save", 
+    RUN_FULL_SAVE = Command("run_full", 
                   [CFRFolder(),
                    BoardFile()],
                   "solves + resaves .cfr file as mini save (no rivers)")
     
     NODELOCK = Command("nodelock",
+                       [CFRFolder(),
+                        WeightsFile(),
+                        BoardFile()],
+                       "Allows you to nodelock a folder of files at once.")
+    NODELOCK_MINI = Command("nodelock_mini",
                        [CFRFolder(),
                         WeightsFile(),
                         BoardFile()],

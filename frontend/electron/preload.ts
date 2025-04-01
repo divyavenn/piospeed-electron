@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { AppSettings } from '../src/components/Settings/SettingsModal';
 
+// Increase the maximum number of listeners to prevent warnings
+ipcRenderer.setMaxListeners(20);
+
 // any components that subscribe to these events will be notified of whenever it changes
 // React UI → preload.ts → ipcHandlers.ts → messageQueue.ts → Python bridge.py
 

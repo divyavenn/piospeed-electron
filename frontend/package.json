@@ -12,10 +12,7 @@
     "build:mac": "tsc && vite build && electron-builder --mac",
     "build:linux": "tsc && vite build && electron-builder --linux",
     "preview": "vite preview",
-    "postinstall": "electron-builder install-app-deps",
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make"
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "electron-store": "^8.1.0",
@@ -46,46 +43,29 @@
     "directories": {
       "output": "dist"
     },
-    "mac": {
-      "target": [
-        "dmg"
-      ],
-      "category": "public.app-category.utilities"
-    },
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "public/logo.png",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    },
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "category": "Utility"
-    },
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "python/**/*",
-      "public/**/*"
+      "python/**/*"
     ],
     "extraResources": [
       {
         "from": "python",
-        "to": "python"
-      },
-      {
-        "from": "public/mappings",
-        "to": "public/mappings"
+        "to": "python",
+        "filter": ["**/*"]
       }
-    ]
+    ],
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Utility"
+    }
   }
 }

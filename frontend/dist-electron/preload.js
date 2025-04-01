@@ -1,5 +1,6 @@
 "use strict";
 const electron = require("electron");
+electron.ipcRenderer.setMaxListeners(20);
 electron.contextBridge.exposeInMainWorld("electron", {
   //Sends a message to the Python backend via IPC, wait for confirmation
   sendToPython: (message) => electron.ipcRenderer.invoke("send-to-python", message),
