@@ -88,9 +88,9 @@ class MessageQueue:
             self.current_writer = None
             self.is_connected = False
     
-    async def notify(self, msg):
+    async def notify(self, msg, msg_type = "notification"):
         """Send a notification message to the Electron frontend"""
-        await self.send(Message("notification", msg))
+        await self.send(Message(msg_type, msg))
     
     async def message_listener(self):
         """Continuously listen for messages from Electron"""
@@ -298,9 +298,9 @@ class MessageQueue:
             print(f"Error in run: {e}")
             traceback.print_exc()
     
-    def notify_sync(self, message):
+    def notify_sync(self, message, msg_type = "notification"):
         """Synchronous version of notify for use as a callback"""
-        asyncio.create_task(self.notify(message))
+        asyncio.create_task(self.notify(message, msg_type))
     
     async def cleanup(self):
         """Clean up resources"""

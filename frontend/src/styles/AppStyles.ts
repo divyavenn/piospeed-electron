@@ -356,16 +356,18 @@ export const ModalContainer = styled.div`
   padding: ${({ theme }) => theme.spacing.large};
   max-width: 500px;
   width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
 `;
 
 export const ModalTitle = styled.h3`
-  color: ${({ theme }) => theme.colors.error};
+  color: ${({ theme }) => theme.colors.primary};
   margin-top: 0;
   font-size: 20px;
   font-weight: 600;
   margin-bottom: ${({ theme }) => theme.spacing.medium};
-  font-family: 'JetBrains Mono', monospace;
+  font-family: Inter 
 `;
 
 export const ModalMessage = styled.p`

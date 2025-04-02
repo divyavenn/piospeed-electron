@@ -10,9 +10,9 @@ class ElectronInterface(Interface):
         self.commandMap = {}
     
 
-    async def notify(self, message) -> None:
+    async def notify(self, message, msg_type = "notification") -> None:
         # Send message back to React via electron_bridge
-        await self.bridge.send(Message("notification", message))
+        await self.bridge.send(Message(msg_type, message))
 
     def set_command_with_args(self, command_str, args):
         """Set the command and arguments to be executed"""

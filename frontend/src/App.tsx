@@ -136,13 +136,6 @@ const RecoilApp: React.FC = () => {
         }
       }
       
-      // Handle command completion
-      if (data.type === 'command_complete') {
-        setIsRunning(false);
-        setCurrentStep('Command completed.');
-        setAnimation('commandPalette');
-      }
-      
       // Handle command summary messages
       else if (data.type === 'command_summary') {
         console.log('Received command summary:', data.data);

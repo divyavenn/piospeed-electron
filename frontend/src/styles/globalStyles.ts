@@ -49,19 +49,38 @@ export const GlobalStyle = createGlobalStyle`
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
+    background-color: transparent;
   }
 
   ::-webkit-scrollbar-track {
-    background: ${({ theme }) => theme.colors.background};
+    background-color: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: ${({ theme }) => theme.colors.primary};
+    background-color: rgba(150, 150, 150, 0.5);
     border-radius: 4px;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: ${({ theme }) => theme.colors.primaryDark};
+  /* Hide scrollbar when not scrolling */
+  *:not(:hover)::-webkit-scrollbar-thumb {
+    background-color: transparent;
+  }
+
+  /* Firefox scrollbar styling */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(150, 150, 150, 0.5) transparent;
+  }
+
+  /* For Firefox, to hide scrollbar when not in use */
+  @-moz-document url-prefix() {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+    *:hover {
+      scrollbar-color: rgba(150, 150, 150, 0.5) transparent;
+    }
   }
 
   /* Custom animations */

@@ -53,6 +53,10 @@ class Program:
         for cfr in files:
             await asyncio.sleep(random.uniform(1, 3))
             self.notify("Resaved " + cfr + ".")
+        name = "resaved without rivers"
+        if save_type == "no_turns":
+            name = "resaved without turns"
+        await self.send_command_summary(name, files, None, None, None)
         
     # new accuracy of solver
     async def update_accuracy(self, args : list[str]):
@@ -117,27 +121,24 @@ class Program:
     # args[0][1] : list of .cfr files
     # args[1][0] : either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs
     async def solve(self, args: list[str]):
-        nodeBook = args[1][0]
         board_type = args[1][1]
-        nodeBook_file_name = get_file_name_from_path(args[1][2])
         save_type = Program.get_save_type(board_type)
         
-        results_path = await self.run_cfr(args[0][0], args[0][1], args[1][0], save_type=save_type)
-        await self.send_command_summary("run_full", args[0][1], args[1][2], nodeBook, results_path)
+        await self.run_cfr(args[0][0], args[0][1], args[1][0], save_type=save_type)
+
     
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     # args[1][0] : either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs
     async def solve_full(self, args: list[str]):
-        results_path = await self.run_cfr(args[0][0], args[0][1], args[1][0])
-        await self.send_command_summary("run_full", args[0][1], args[1][2], args[1][0], results_path)
+        await self.run_cfr(args[0][0], args[0][1], args[1][0])
+
         
     # args[0][0] : the folder path
     # args[0][1] : list of .cfr files
     # args[1][0] : either a string with the nodeID or a map with .cfr file names -> file-specific nodeIDs
     async def get_results(self, args: list[str]):
-        results_path = await self.run_cfr(args[0][0], args[0][1], args[1][0], solveFirst=False)
-        await self.send_command_summary("get_results", args[0][1], args[1][2], args[1][0], results_path)
+        await self.run_cfr(args[0][0], args[0][1], args[1][0], solveFirst=False)
         
     
         
@@ -146,6 +147,7 @@ class Program:
         # arrays that will be written to CSV file
         toCSV = []
         
+        processed_files = []
         for cfr in cfrFiles:  
           if solveFirst:
             self.notify("Solving " + cfr + " to an accuracy of " + str(self.accuracy) + ".")
@@ -162,8 +164,12 @@ class Program:
         
         
         if publish_results:
-            return await self.publish_results(folder, toCSV, solved = solveFirst)
+            await self.publish_results(folder, toCSV, solved = solveFirst)
         
+        name = "simple run."
+        if save_type == 'auto':
+            name = "run and save compressed tree"
+        await self.send_command_summary(name, cfrFiles, None, nodeBook, savePath)
         return None
     
     # args[0][0] : the folder path
@@ -187,8 +193,7 @@ class Program:
         save_type = None
         if auto_size:
             save_type = "no rivers"
-        
-        processed_files = []
+    
         for cfr in cfrFiles:
             nodeID = "target node"
             if nodeID:
@@ -206,7 +211,6 @@ class Program:
                     if (save_type):
                         msg = "Saved to " + path + cfr + " using " + save_type + " save."
                     self.notify(msg)
-                    processed_files.append(cfr)
                     
                     # get results
 
@@ -221,8 +225,8 @@ class Program:
         results_path = await self.publish_results(path, toCSV, solve)
         
         # Send command summary to frontend
-        command_type = "nodelock_solve_full" if solve and not auto_size else "nodelock_solve_mini" if solve and auto_size else "nodelock"
-        await self.send_command_summary(command_type, processed_files, weights_file_path, nodeBook, results_path)
+        command_type = "nodelock, solve, and full save" if solve and not auto_size else "nodelock, solve, and compressed save" if solve and auto_size else "nodelock"
+        await self.send_command_summary(command_type, cfrFiles, weights_file_path, nodeBook, results_path)
         
         return path
         
@@ -231,17 +235,15 @@ class Program:
         summary = {
             "command": command_type,
             "processed_files": processed_files,
-            "weights_file": weights_file,
-            "board_file": board_file,
-            "results_path": results_path
         }
+        if (weights_file):
+            summary["weights_file"] = weights_file
+        if (board_file):
+            summary["board_file"] = board_file
+        if (results_path):
+            summary["results_path"] = results_path
         
-        # If we're using the bridge to communicate with the frontend
-        if hasattr(self, 'bridge') and self.bridge:
-            await self.bridge.send(Message('command_summary', summary))
-        else:
-            # Otherwise just print the summary
-            self.notify(f"Command Summary: {summary}")
+        self.notify(summary, msg_type="command_summary")
     
     async def publish_results(self, folder:str, toCSV: list[list[str]], solved = True):
         path = self.get_results_path("results_" + timestamp() + ".csv")

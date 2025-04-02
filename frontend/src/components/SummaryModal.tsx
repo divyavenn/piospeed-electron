@@ -28,9 +28,9 @@ const SummarySection = styled.div`
 const SummaryTitle = styled.h4`
   margin-top: 0;
   margin-bottom: 8px;
-  font-size: 16px;
+  font-size: 14px;
   color: ${({ theme }) => theme.colors.primary};
-  font-family: 'JetBrains Mono', monospace;
+  font-family: Inter;
 `;
 
 const SummaryContent = styled.div`
@@ -64,15 +64,15 @@ const CommandSummaryModal: React.FC<CommandSummaryProps> = ({ isOpen, onClose, s
   return (
     <ModalOverlay>
       <ModalContainer>
-        <ModalTitle>Command Execution Summary</ModalTitle>
+        <ModalTitle>done!</ModalTitle>
         
         <SummarySection>
-          <SummaryTitle>Command</SummaryTitle>
+          <SummaryTitle>running this command</SummaryTitle>
           <SummaryContent>{getCommandDisplayName(summary.command)}</SummaryContent>
         </SummarySection>
         
         <SummarySection>
-          <SummaryTitle>Processed Files</SummaryTitle>
+          <SummaryTitle>on these trees</SummaryTitle>
           <SummaryContent>
             <FileList>
               {summary.processed_files.map((file, index) => (
@@ -82,20 +82,26 @@ const CommandSummaryModal: React.FC<CommandSummaryProps> = ({ isOpen, onClose, s
           </SummaryContent>
         </SummarySection>
         
-        <SummarySection>
-          <SummaryTitle>Weights File</SummaryTitle>
-          <SummaryContent>{summary.weights_file}</SummaryContent>
-        </SummarySection>
+        {summary.weights_file && (
+          <SummarySection>
+            <SummaryTitle>nodelocked using weights at</SummaryTitle>
+            <SummaryContent>{summary.weights_file}</SummaryContent>
+          </SummarySection>
+        )}
         
-        <SummarySection>
-          <SummaryTitle>Board File</SummaryTitle>
-          <SummaryContent>{summary.board_file}</SummaryContent>
-        </SummarySection>
+        {summary.board_file && (
+          <SummarySection>
+            <SummaryTitle>at this node</SummaryTitle>
+            <SummaryContent>{summary.board_file}</SummaryContent>
+          </SummarySection>
+        )}
         
-        <SummarySection>
-          <SummaryTitle>Results Path</SummaryTitle>
-          <SummaryContent>{summary.results_path}</SummaryContent>
-        </SummarySection>
+        {summary.results_path && (
+          <SummarySection>
+            <SummaryTitle>published results to</SummaryTitle>
+            <SummaryContent>{summary.results_path}</SummaryContent>
+          </SummarySection>
+        )}
         
         <ModalButtonContainer>
           <ModalButton onClick={onClose}>OK</ModalButton>
